@@ -18,6 +18,7 @@ This directory holds the repository documentation. Start here, then read the gui
 - [GitHub settings](github-settings.md) defines the repository settings and topics and the apply script.
 - [Pinning](pinning.md) defines the commit-SHA pinning rules.
 - [Linting](linting.md) defines the linters and formatters the lint job runs.
+- [Coverage](coverage.md) defines the changed-line coverage gate.
 - [Scripts](scripting.md) defines the bash and PowerShell script conventions.
 - [Architecture](architecture.md) diagrams the fleet conformance check.
 
