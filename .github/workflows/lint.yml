@@ -13,6 +13,7 @@ permissions:
 
 jobs:
   flint:
+    if: github.repository_owner == 'simpsonm09-org'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:

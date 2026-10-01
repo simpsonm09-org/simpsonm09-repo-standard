@@ -9,6 +9,7 @@ permissions:
 
 jobs:
   release:
+    if: github.repository_owner == 'simpsonm09-org'
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
