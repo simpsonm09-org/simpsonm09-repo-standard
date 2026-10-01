@@ -19,6 +19,7 @@
     { "type": "creation" },
     { "type": "deletion" },
     { "type": "non_fast_forward" },
+    { "type": "required_signatures" },
     {
       "type": "pull_request",
       "parameters": {
@@ -40,7 +41,8 @@
           { "context": "aislop / aislop" },
           { "context": "security / trivy" },
           { "context": "security / secrets" },
-          { "context": "standard / standard" }
+          { "context": "standard / standard" },
+          { "context": "test" }
         ]
       }
     }

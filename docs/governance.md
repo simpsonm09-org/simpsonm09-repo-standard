@@ -25,7 +25,8 @@ Targets `refs/heads/main`.
 - Required approvals set to zero. GitHub does not allow self-approval, so zero is the honest value for a solo maintainer.
 - Extra approval for unattributed changes is off. GitHub enables `require_extra_approval_for_unattributed_changes` when the field is absent, and that would demand an approval a solo maintainer cannot give. The ruleset sets it to `false` explicitly.
 - Dismiss stale approvals and require conversation resolution.
-- Require the lint, aislop, security, and standard status checks, and require branches to be up to date.
+- Require signed commits on the branch.
+- Require the lint, aislop, security, standard, and test status checks, and require branches to be up to date.
 - No linear-history rule. Merge commits are allowed.
 - Bypass list is the organization admin role with mode `pull_request`. The only escape hatch is merging a pull request as an administrator. A bypass is recorded in the audit log.
 
@@ -51,7 +52,7 @@ Rulesets do not cover these. Set them on each repository.
 
 ## Signed commits
 
-Signed commits are required on `main`. GitHub signs the merge commits it creates through the web UI and through the API, so the merge itself passes. Each commit on the feature branch must be signed. Configure an SSH signing key on each runtime.
+Signed commits are required on `main`, and the `protect-main` ruleset enforces it with the `required_signatures` rule. GitHub signs the merge commits it creates through the web UI and through the API, so the merge itself passes. Each commit on the feature branch must be signed. Configure an SSH signing key on each runtime.
 
 ## Enforcement timing
 

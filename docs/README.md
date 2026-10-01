@@ -17,6 +17,7 @@ This directory holds the repository documentation. Start here, then read the gui
 - [Governance](governance.md) defines the branch model and the protection rules.
 - [GitHub settings](github-settings.md) defines the repository settings and topics and the apply script.
 - [Pinning](pinning.md) defines the commit-SHA pinning rules.
+- [Linting](linting.md) defines the linters and formatters the lint job runs.
 - [Scripts](scripting.md) defines the bash and PowerShell script conventions.
 - [Architecture](architecture.md) diagrams the fleet conformance check.
 
@@ -27,6 +28,7 @@ This directory holds the repository documentation. Start here, then read the gui
 
 ## Conventions
 
+- [Definition of done](definition-of-done.md) is the bar every change meets.
 - [Root README](root-readme.md) defines the README every repository carries.
 - [Community health files](community.md) defines the files GitHub detects and which are required.
 - [License](license.md) defines the MIT license, the README section, and the fork exception.
