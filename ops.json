@@ -70,6 +70,13 @@
       "description": "Check one repository against the standard, applying the exception file."
     },
     {
+      "id": "patch-coverage",
+      "kind": "portable",
+      "args": true,
+      "run": "node scripts/patch-coverage.mjs",
+      "description": "Fail when the changed lines are not covered enough."
+    },
+    {
       "id": "apply-settings",
       "kind": "portable",
       "args": true,
