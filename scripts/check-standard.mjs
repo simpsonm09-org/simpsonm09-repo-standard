@@ -128,23 +128,8 @@ function findUses(block) {
   return null;
 }
 
-function hasTests(root) {
-  const mise = join(root, 'mise.toml');
-  if (existsSync(mise)) {
-    const text = normalize(readText(mise));
-    if (/^\s*\[tasks\.(?:"test"|test)\]\s*$/m.test(text)) return true;
-  }
-  const justfile = join(root, 'justfile');
-  if (existsSync(justfile)) {
-    const text = normalize(readText(justfile));
-    if (/^test:/m.test(text)) return true;
-  }
-  return false;
-}
-
 function checkFiles(root, add) {
-  for (const rel of REQUIRED_PATHS) {
-    const full = join(root, rel);
+  for (const rel of REQUIRED_PATHS) {    const full = join(root, rel);
     if (!existsSync(full)) {
       add(`files/${rel.replace(/\/$/, '')}`, `missing required path ${rel}`);
       continue;
@@ -161,6 +146,18 @@ function checkMise(root, add) {
   if (!/^\s*"aqua:casey\/just"\s*=/m.test(normalize(readText(file)))) {
     add('mise/just-pin', 'mise.toml does not pin aqua:casey/just');
   }
+}
+
+function hasTestJob(root) {
+  const dir = join(root, '.github', 'workflows');
+  if (!existsSync(dir)) return false;
+  for (const name of readdirSync(dir)) {
+    if (!/\.ya?ml$/.test(name)) continue;
+    const jobs = parseJobs(normalize(readText(join(dir, name))));
+    const block = jobs.get('test');
+    if (block && block.some((line) => /^\s+runs-on:/.test(line))) return true;
+  }
+  return false;
 }
 
 function checkCi(root, add) {
@@ -203,11 +200,8 @@ function checkCi(root, add) {
     }
   }
 
-  if (hasTests(root)) {
-    const own = [...jobs.keys()]
-      .filter((name) => !SHARED_JOBS.includes(name))
-      .filter((name) => jobs.get(name).some((line) => /^\s+runs-on:/.test(line)));
-    if (own.length === 0) add('ci/test-job', 'the repository defines a test task but ci.yml has no job that runs it');
+  if (!hasTestJob(root)) {
+    add('ci/test', 'no "test" job that runs on a runner in .github/workflows');
   }
 }
 

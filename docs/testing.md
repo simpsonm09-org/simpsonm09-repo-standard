@@ -28,7 +28,7 @@ Pin every action to a commit SHA with the version in a trailing comment. See [`p
 
 ## Required check
 
-The shared status checks are `lint / flint`, `aislop / aislop`, `security / trivy`, `security / secrets`, and `standard / standard`. Add the test job's check to `required_status_checks` in `rulesets/protect-main.json` once it is stable. See [`governance.md`](governance.md).
+The shared status checks are `lint / flint`, `aislop / aislop`, `security / trivy`, `security / secrets`, and `standard / standard`. The `test` job is also required. Name the job `test` so the required check has one stable name across the fleet. See [`governance.md`](governance.md).
 
 ## Local
 

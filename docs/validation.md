@@ -25,7 +25,7 @@ skip the API checks.
 | --- | --- |
 | `files` | The required paths exist. |
 | `mise` | `mise.toml` pins `aqua:casey/just`. |
-| `ci` | `ci.yml` calls `lint`, `aislop`, `security`, and `standard` at a pinned SHA, and runs a test job when the repository defines a test task. |
+| `ci` | `ci.yml` calls `lint`, `aislop`, `security`, and `standard` at a pinned SHA, and defines a `test` job that runs on a runner. |
 | `dependabot` | `.github/dependabot.yml` declares version 2, a scheduled ecosystem, and no inline credential. |
 | `community` | The byte-identical community files match the pinned standard. |
 | `docs` | The [documentation layout](documentation.md) holds. |

@@ -3,6 +3,7 @@ scan:
     - vuln
     - secret
     - misconfig
+    - license
 severity:
   - HIGH
   - CRITICAL
