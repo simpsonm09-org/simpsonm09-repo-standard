@@ -10,18 +10,18 @@ permissions:
 
 jobs:
   lint:
-    uses: simpsonm09-org/simpsonm09-repo-standard/.github/workflows/lint.yml@6602a1380cc671652f873971e95e7c68edbfb693 # repo-standard main
+    uses: simpsonm09-org/simpsonm09-repo-standard/.github/workflows/lint.yml@4cfbbd59ad9dc8f665df861e10634a26bf59e4b9 # repo-standard main
   aislop:
     permissions:
       contents: read
       security-events: write
-    uses: simpsonm09-org/simpsonm09-repo-standard/.github/workflows/aislop.yml@6602a1380cc671652f873971e95e7c68edbfb693 # repo-standard main
+    uses: simpsonm09-org/simpsonm09-repo-standard/.github/workflows/aislop.yml@4cfbbd59ad9dc8f665df861e10634a26bf59e4b9 # repo-standard main
   security:
     permissions:
       contents: read
       security-events: write
-    uses: simpsonm09-org/simpsonm09-repo-standard/.github/workflows/security.yml@6602a1380cc671652f873971e95e7c68edbfb693 # repo-standard main
+    uses: simpsonm09-org/simpsonm09-repo-standard/.github/workflows/security.yml@4cfbbd59ad9dc8f665df861e10634a26bf59e4b9 # repo-standard main
   standard:
     permissions:
       contents: read
-    uses: simpsonm09-org/simpsonm09-repo-standard/.github/workflows/standard.yml@6602a1380cc671652f873971e95e7c68edbfb693 # repo-standard main
+    uses: simpsonm09-org/simpsonm09-repo-standard/.github/workflows/standard.yml@4cfbbd59ad9dc8f665df861e10634a26bf59e4b9 # repo-standard main
