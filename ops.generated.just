@@ -47,6 +47,10 @@ check-standard *args:
 check-repo *args:
     {{op}} run check-repo {{args}}
 
+# Fail when the changed lines are not covered enough.
+patch-coverage *args:
+    {{op}} run patch-coverage {{args}}
+
 # Converge repository settings, the owner topic, and public-repo security.
 apply-settings *args:
     {{op}} run apply-settings {{args}}
