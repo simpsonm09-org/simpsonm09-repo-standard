@@ -14,23 +14,28 @@ concurrency:
 
 jobs:
   lint:
+    if: github.repository_owner == 'simpsonm09-org'
     uses: ./.github/workflows/lint.yml # zizmor: ignore[self-repository] actionlint rejects the $/ form
   aislop:
+    if: github.repository_owner == 'simpsonm09-org'
     permissions:
       contents: read
       security-events: write
     uses: ./.github/workflows/aislop.yml # zizmor: ignore[self-repository] actionlint rejects the $/ form
   security:
+    if: github.repository_owner == 'simpsonm09-org'
     permissions:
       contents: read
       security-events: write
     uses: ./.github/workflows/security.yml # zizmor: ignore[self-repository] actionlint rejects the $/ form
   standard:
+    if: github.repository_owner == 'simpsonm09-org'
     permissions:
       contents: read
     uses: ./.github/workflows/standard.yml # zizmor: ignore[self-repository] actionlint rejects the $/ form
 
   test:
+    if: github.repository_owner == 'simpsonm09-org'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:

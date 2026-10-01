@@ -10,6 +10,7 @@ permissions:
 
 jobs:
   label:
+    if: github.repository_owner == 'simpsonm09-org'
     runs-on: ubuntu-24.04
     steps:
       - name: Label the pull request by changed paths

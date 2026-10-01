@@ -14,18 +14,22 @@ concurrency:
 
 jobs:
   lint:
+    if: github.repository_owner == 'simpsonm09-org'
     uses: simpsonm09-org/simpsonm09-repo-standard/.github/workflows/lint.yml@52061d685bfca4cf0c2ac28926acdcb313680bc4 # repo-standard main
   aislop:
+    if: github.repository_owner == 'simpsonm09-org'
     permissions:
       contents: read
       security-events: write
     uses: simpsonm09-org/simpsonm09-repo-standard/.github/workflows/aislop.yml@52061d685bfca4cf0c2ac28926acdcb313680bc4 # repo-standard main
   security:
+    if: github.repository_owner == 'simpsonm09-org'
     permissions:
       contents: read
       security-events: write
     uses: simpsonm09-org/simpsonm09-repo-standard/.github/workflows/security.yml@52061d685bfca4cf0c2ac28926acdcb313680bc4 # repo-standard main
   standard:
+    if: github.repository_owner == 'simpsonm09-org'
     permissions:
       contents: read
     uses: simpsonm09-org/simpsonm09-repo-standard/.github/workflows/standard.yml@52061d685bfca4cf0c2ac28926acdcb313680bc4 # repo-standard main
@@ -33,6 +37,7 @@ jobs:
   # Required check. Every repository defines `just test`; replace the step below
   # with the repository test command when the generic task runner call is not enough.
   test:
+    if: github.repository_owner == 'simpsonm09-org'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
