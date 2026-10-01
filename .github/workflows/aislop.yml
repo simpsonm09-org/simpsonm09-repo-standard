@@ -1,0 +1,36 @@
+name: aislop
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  aislop:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - name: Scan and write SARIF
+        run: npx --yes aislop@0.16.1 ci --sarif > aislop.sarif
+        continue-on-error: true
+      # SARIF lands in the Security tab only when code scanning is available,
+      # which a free private repository does not have. Keep the upload
+      # best-effort so the score gate above is the real failure signal.
+      - name: Upload SARIF
+        if: always()
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4
+        with:
+          sarif_file: aislop.sarif
+      - name: Enforce the score gate
+        run: npx --yes aislop@0.16.1 ci

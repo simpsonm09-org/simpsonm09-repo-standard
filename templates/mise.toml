@@ -1,0 +1,26 @@
+# Copy to a consuming repository, then run `flint init` to choose linters and
+# formatters and commit the pins it adds under the Linters header.
+
+[tools]
+
+# Task runner
+"aqua:casey/just" = "1.58.0"
+
+# Linters
+"aqua:grafana/flint" = "0.22.14"
+
+[env]
+FLINT_CONFIG_DIR = ".github/config"
+
+[tasks.lint]
+description = "Run all lints"
+run = "flint run"
+
+[tasks."lint:fix"]
+description = "Auto-fix lint issues"
+run = "flint run --fix"
+
+# Replace the command with the repository test runner.
+[tasks.test]
+description = "Run the tests"
+run = "pytest"

@@ -1,0 +1,88 @@
+{
+  "runtime": "node",
+  "operations": [
+    {
+      "id": "install",
+      "kind": "portable",
+      "run": "mise install",
+      "description": "Install the pinned tools with mise."
+    },
+    {
+      "id": "lint",
+      "kind": "portable",
+      "run": "node scripts/lint.mjs",
+      "description": "Run flint over every tracked file."
+    },
+    {
+      "id": "lint-fix",
+      "kind": "portable",
+      "run": "node scripts/lint.mjs --fix",
+      "description": "Fix what flint can fix."
+    },
+    {
+      "id": "aislop",
+      "kind": "portable",
+      "run": "node scripts/aislop.mjs",
+      "description": "Run the AI-slop gate."
+    },
+    {
+      "id": "security",
+      "kind": "portable",
+      "run": "node scripts/security.mjs",
+      "description": "Scan the filesystem with Trivy."
+    },
+    {
+      "id": "secret-scan",
+      "kind": "portable",
+      "run": "node scripts/secret-scan.mjs",
+      "description": "Scan git history for secrets with gitleaks."
+    },
+    {
+      "id": "verify",
+      "kind": "portable",
+      "run": "node scripts/verify.mjs",
+      "description": "Run the local CI mirror: lint, aislop, security, and secret scan."
+    },
+    {
+      "id": "prune",
+      "kind": "portable",
+      "run": "node scripts/prune.mjs",
+      "description": "Prune remote-tracking refs and delete local branches merged into main."
+    },
+    {
+      "id": "check",
+      "kind": "portable",
+      "run": "node scripts/op.mjs check",
+      "description": "Validate the operation manifest, recipes, twins, and generated artifacts."
+    },
+    {
+      "id": "check-standard",
+      "kind": "portable",
+      "args": true,
+      "run": "node scripts/check-standard.mjs",
+      "description": "Check one repository against the standard and print a matrix."
+    },
+    {
+      "id": "check-repo",
+      "kind": "portable",
+      "args": true,
+      "run": "node scripts/check-repo.mjs",
+      "description": "Check one repository against the standard, applying the exception file."
+    },
+    {
+      "id": "apply-settings",
+      "kind": "portable",
+      "args": true,
+      "run": "node scripts/apply-settings.mjs",
+      "description": "Converge repository settings, the owner topic, and public-repo security."
+    },
+    {
+      "id": "apply-rulesets",
+      "kind": "twin",
+      "args": true,
+      "windows": "scripts/apply-rulesets.ps1",
+      "posix": "scripts/apply-rulesets.sh",
+      "description": "Apply the ruleset JSON to a repository."
+    }
+  ]
+}

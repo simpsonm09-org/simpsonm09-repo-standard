@@ -1,0 +1,27 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    uses: ./.github/workflows/lint.yml # zizmor: ignore[self-repository] actionlint rejects the $/ form
+  aislop:
+    permissions:
+      contents: read
+      security-events: write
+    uses: ./.github/workflows/aislop.yml # zizmor: ignore[self-repository] actionlint rejects the $/ form
+  security:
+    permissions:
+      contents: read
+      security-events: write
+    uses: ./.github/workflows/security.yml # zizmor: ignore[self-repository] actionlint rejects the $/ form
+  standard:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/standard.yml # zizmor: ignore[self-repository] actionlint rejects the $/ form

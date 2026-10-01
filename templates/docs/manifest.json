@@ -1,0 +1,5 @@
+{
+  "readme": true,
+  "features": ["docs/features/example.md"],
+  "diagrams": ["docs/architecture.md"]
+}

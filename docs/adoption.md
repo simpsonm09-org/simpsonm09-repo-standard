@@ -1,0 +1,114 @@
+# Adopting the standard
+
+Do these steps once per repository.
+
+## 1. Add the caller workflow
+
+Copy [`templates/caller-ci.yml`](../templates/caller-ci.yml) to `.github/workflows/ci.yml` in the consuming repository. It calls the reusable lint, aislop, security, and standard workflows.
+
+The `standard` job runs [`check-repo.mjs`](../scripts/check-repo.mjs) for the repository and applies [`exceptions.json`](exceptions.json) from the pinned standard. It checks the tree-local groups on the pull request. See [`features/fleet-conformance.md`](features/fleet-conformance.md).
+
+Pin the `uses:` references to a commit SHA of this repository rather than `@main` for a stable supply chain. The pin-update workflow reports when the pin falls behind.
+
+Run this workflow in the upstream repository. The fleet rule is that a personal fork runs no Actions, and the upstream repository runs the caller on pushes to `main` and on pull requests. Disable Actions on every personal fork, in its Settings under Actions and General, or with `gh api -X PUT repos/<owner>/<repo>/actions/permissions -F enabled=false`.
+
+The shared jobs do not run tests. Add the repository's own `test` job next to them. See [`testing.md`](testing.md).
+
+## 2. Add the tool pins
+
+Copy [`templates/mise.toml`](../templates/mise.toml) to the repository root. Run `flint init` to choose linters and formatters, then commit the pins it adds. Replace the placeholder `test` task with the repository test command.
+
+## 3. Add the task runner
+
+Copy [`templates/justfile`](../templates/justfile) to the repository root. It gives a human or an agent one entry point for lint, test, and the AI-slop gate. Copy [`scripts/prune.mjs`](../scripts/prune.mjs) to the repository root as `scripts/prune.mjs` so `just prune` works. See [`task-runner.md`](task-runner.md).
+
+`just` is pinned in `mise.toml`. Run `mise install` to get it.
+
+## 4. Add the README
+
+Copy [`templates/README.md`](../templates/README.md) to the repository root and replace the placeholders. See [`root-readme.md`](root-readme.md).
+
+## 5. Add the license
+
+Copy [`templates/LICENSE`](../templates/LICENSE) to the repository root and add the `## License` section to the README. See [`license.md`](license.md).
+
+## 6. Add the scan configuration
+
+- Copy [`trivy.yaml`](../trivy.yaml) to the repository root.
+- Copy [`templates/aislop-config.yml`](../templates/aislop-config.yml) to `.aislop/config.yml`. Adjust `failBelow` to the score the repository should hold, and keep the value consistent across repositories.
+- Copy [`.github/config/flint.toml`](../.github/config/flint.toml) so Flint has a configuration file to fill in.
+
+## 7. Adopt Dependabot
+
+Add `.github/dependabot.yml` at the repository root so dependency and action pins update consistently across repositories. Start from [`../templates/dependabot.yml`](../templates/dependabot.yml) and uncomment the ecosystem the repository ships:
+
+```yaml
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+```
+
+Dependabot has no shareable preset, so the file lives in each repository. The standard checks its shape. Version updates start when the file is on the default branch, and the organization enables alerts and security updates.
+
+## 8. Add the editor and git conventions
+
+Copy `.editorconfig`, `.gitattributes`, and `.gitignore` entries of interest. Mark generated files in `.gitattributes` with `linguist-generated` so Flint and GitHub both skip them.
+
+## 9. Add the documentation layout
+
+Copy [`templates/docs/`](../templates/docs/) into `docs/`, then replace the skeleton with the repository's own index, manifest, architecture page, and feature pages. The manifest declares which optional artifacts apply, including an OpenAPI or AsyncAPI document when the repository exposes a contract. See [`documentation.md`](documentation.md).
+
+## 10. Add agent and skill files
+
+Copy [`templates/AGENTS.md`](../templates/AGENTS.md) when the repository has repo-specific facts. Copy [`templates/agents/`](../templates/agents/) and [`templates/skills/`](../templates/skills/) into the repository only when the repository ships project-local OpenCode setup. General best practices and integration come from the plugins; the repository holds only its own facts. See [`agents-and-skills.md`](agents-and-skills.md).
+
+## 11. Add community files
+
+Copy `SECURITY.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `CODEOWNERS`, `LICENSE`, and the templates from `.github/ISSUE_TEMPLATE/` and `.github/pull_request_template.md` if the repository does not have its own. These are the files GitHub shows in the community health files bar. See [community.md](community.md) for the fields, the required set, and the optional files.
+
+These files are byte-identical across the fleet. Copy `SECURITY.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `LICENSE`, `.editorconfig`, `.aislop/config.yml`, `.github/pull_request_template.md`, `.github/ISSUE_TEMPLATE/bug.yml`, `.github/ISSUE_TEMPLATE/feature.yml`, and `.github/ISSUE_TEMPLATE/config.yml` from this repository without edits. `CODEOWNERS` and `.gitattributes` are the exceptions. Set the owner in `CODEOWNERS`, and add `linguist-generated` lines to `.gitattributes` for the files the repository generates.
+
+## 12. Apply branch protection and repository settings
+
+Run the ruleset apply script for the repository. See [`governance.md`](governance.md).
+
+```bash
+bash scripts/apply-rulesets.sh <owner>/<repo> --apply
+```
+
+```powershell
+pwsh -File scripts/apply-rulesets.ps1 -Repo <owner>/<repo> -Apply
+```
+
+Converge the repository settings and add the owner topic. See [`github-settings.md`](github-settings.md).
+
+```bash
+node scripts/apply-settings.mjs <owner>/<repo> --apply
+```
+
+## 13. Verify
+
+Open a pull request and confirm the lint, aislop, and security jobs run and report to the Security tab. If the repository added a test job, confirm it runs too. Confirm the README, the license, and the docs index are in place.
+
+Run the checker from the repository root. It exits zero when the repository conforms.
+
+```bash
+node scripts/check-standard.mjs .
+```
+
+From the pinned standard you can run the same check with the exception file applied.
+
+```bash
+node scripts/check-repo.mjs . --repo <owner>/<repo>
+```
+
+## Optional automation
+
+A repository copies the workflows it needs from `templates/`. See [`automation.md`](automation.md).
+
+- Dependency and Action updates come from Dependabot. Add [`.github/dependabot.yml`](../templates/dependabot.yml) from the template; the organization enables alerts and security updates. See [`automation.md`](automation.md).
+- Labels come from [`../templates/workflows/labeler.yml`](../templates/workflows/labeler.yml) and [`../templates/labeler.yml`](../templates/labeler.yml). Create the labels before the workflow runs.
+- Releases come from [`../templates/workflows/release.yml`](../templates/workflows/release.yml), which creates a release with generated notes when a `v*` tag is pushed.

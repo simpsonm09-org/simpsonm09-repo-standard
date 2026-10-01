@@ -1,0 +1,39 @@
+# Testing
+
+The standard ships the lint, aislop, and security jobs. It does not ship a test job, because the test command belongs to the repository. Each repository adds one.
+
+## Add a test job
+
+Add a `test` job to the repository's caller workflow next to the shared jobs. The job installs the pinned tools and runs the suite.
+
+[`../templates/caller-ci.yml`](../templates/caller-ci.yml) holds the three shared jobs. Add the test job after them. A Python repository adds this shape:
+
+```yaml
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@<sha> # <version>
+        with:
+          persist-credentials: false
+      - name: Install pinned tools
+        uses: jdx/mise-action@<sha> # <version>
+      - name: Install and test
+        run: |
+          pip install -e '.[test]'
+          pytest
+```
+
+Pin every action to a commit SHA with the version in a trailing comment. See [`pinning.md`](pinning.md).
+
+## Required check
+
+The shared status checks are `lint / flint`, `aislop / aislop`, `security / trivy`, `security / secrets`, and `standard / standard`. Add the test job's check to `required_status_checks` in `rulesets/protect-main.json` once it is stable. See [`governance.md`](governance.md).
+
+## Local
+
+Run the suite through the task runner, and keep the same command in a `mise` task.
+
+```bash
+just test
+```

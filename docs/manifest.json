@@ -1,0 +1,5 @@
+{
+  "readme": true,
+  "features": ["docs/features/fleet-conformance.md"],
+  "diagrams": ["docs/architecture.md"]
+}

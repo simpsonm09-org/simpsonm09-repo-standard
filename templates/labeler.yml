@@ -1,0 +1,80 @@
+# Path rules for actions/labeler. Copy to .github/labeler.yml.
+# Every label named here must exist in the repository, otherwise the labeler
+# skips it. Create the set once with `gh label create` or the web UI.
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/*.md"
+          - "docs/**/*"
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/**/*"
+          - "scripts/**/*"
+
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/package.json"
+          - "**/package-lock.json"
+          - "**/pnpm-lock.yaml"
+          - "**/yarn.lock"
+          - "**/requirements*.txt"
+          - "**/pyproject.toml"
+          - "**/go.mod"
+          - "**/go.sum"
+          - "**/Cargo.toml"
+          - "**/Gemfile*"
+          - "**/pom.xml"
+
+tests:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/*.test.ts"
+          - "**/*.test.tsx"
+          - "**/*.test.js"
+          - "**/*.spec.ts"
+          - "**/*.spec.tsx"
+          - "**/*.spec.js"
+          - "**/*_test.go"
+          - "**/test_*.py"
+          - "**/tests/**/*"
+          - "**/__tests__/**/*"
+
+configuration:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/*.toml"
+          - "**/*.yaml"
+          - "**/*.yml"
+          - "**/tsconfig*.json"
+          - "**/.editorconfig"
+
+security:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/dependabot.yml"
+          - ".github/workflows/security.yml"
+          - "trivy.yaml"
+          - "SECURITY.md"
+
+frontend:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "src/**/*.tsx"
+          - "src/**/*.jsx"
+          - "app/**/*.tsx"
+          - "components/**/*"
+          - "pages/**/*"
+          - "**/*.css"
+          - "**/*.scss"
+
+backend:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "src/**/*.py"
+          - "api/**/*"
+          - "server/**/*"
+          - "backend/**/*"

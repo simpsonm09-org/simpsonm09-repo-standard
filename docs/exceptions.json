@@ -1,0 +1,16 @@
+{
+  "exceptions": [
+    {
+      "repo": "simpsonm09-org/simpsonm09-postman-test-utils",
+      "checks": ["community/.aislop/config.yml"],
+      "reason": "The aislop audit is off for this repository because newman's optional peer tree reports advisories with no upstream fix, and the Trivy scan is the dependency gate. The divergence is documented in the file.",
+      "date": "2026-09-30"
+    },
+    {
+      "repo": "simpsonm09-org/pstack-opencode-plugin",
+      "checks": ["community/LICENSE"],
+      "reason": "The port retains the upstream author's copyright line, so the LICENSE is not byte-identical to the standard.",
+      "date": "2026-09-30"
+    }
+  ]
+}
