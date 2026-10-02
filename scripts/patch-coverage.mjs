@@ -43,7 +43,12 @@ function parseLcov(text) {
 }
 
 function changedLines(base) {
-  const diff = execFileSync('git', ['diff', '--unified=0', `${base}...HEAD`], { encoding: 'utf8' });
+  let diff;
+  try {
+    diff = execFileSync('git', ['diff', '--unified=0', `${base}...HEAD`], { encoding: 'utf8' });
+  } catch {
+    return new Map();
+  }
   const result = new Map();
   let file = null;
   for (const line of diff.split('\n')) {
