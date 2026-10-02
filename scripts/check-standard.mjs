@@ -291,7 +291,9 @@ function marksGenerated(root, rel) {
     const text = line.trim();
     if (!text || text.startsWith('#')) continue;
     const tokens = text.split(/\s+/);
-    if (tokens.length < 2 || !tokens.slice(1).includes('linguist-generated')) continue;
+    if (tokens.length < 2) continue;
+    const marked = tokens.slice(1).some((attr) => attr === 'linguist-generated' || attr.startsWith('linguist-generated='));
+    if (!marked) continue;
     const pattern = tokens[0].replace(/^\//, '');
     if (pattern === rel || pattern === base || pattern === `**/${base}`) return true;
     if (pattern.startsWith('*') && base.endsWith(pattern.slice(1))) return true;
@@ -303,7 +305,7 @@ function hasSpecRecipe(root) {
   const file = join(root, 'justfile');
   if (!existsSync(file)) return false;
   const text = normalize(readText(file)).replace(/\r\n/g, '\n');
-  return /^spec\b[^\n]*:/m.test(text);
+  return /^@?spec(\s+[^:\n]*)?:(?!=)/m.test(text);
 }
 
 function checkDocs(root, add) {
