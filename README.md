@@ -15,6 +15,7 @@ The reusable repository standard for `simpsonm09-org`. It owns the shared CI, li
 - Repository settings and owner-topic convergence through a dry-run apply script.
 - Bash and PowerShell versions of every operational script, with matching behavior.
 - A testing convention for the test job each repository adds to its caller workflow.
+- A generated-OpenAPI contract rule for the repositories that expose an API, with a checker that fails a hand-edited document.
 - Agent and skill templates for project-local OpenCode setup, with the plugin-versus-repository ownership rule.
 - A root README convention with a skeleton, a documentation layout, and an MIT license policy.
 - Editor and git conventions, issue and pull request templates, and security policy.

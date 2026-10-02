@@ -42,6 +42,12 @@ Add a diagram when a document describes a flow, a sequence, or a system boundary
 
 A repository that exposes an HTTP API keeps an OpenAPI document. A repository that publishes or consumes messages keeps an AsyncAPI document. Declare the document in the manifest. The check confirms the file exists and declares a version.
 
+The document is generated from the code, not hand-edited. Annotate the handlers and the schema types, and let the framework emit the document. The code is then the only source, and the checked-in document cannot drift from it. Add a `spec` recipe that regenerates the document, and mark the generated file `linguist-generated` in `.gitattributes`. The `test` job runs the recipe and fails when regeneration changes the file, so a hand edit goes red.
+
+The check reports `docs/api-generated` when a declared document is not marked generated or the `justfile` has no `spec` recipe.
+
+Frameworks that emit the document: FastAPI for Python, Fastify with `@fastify/swagger` for Node, and springdoc-openapi for Kotlin with Spring Boot.
+
 ## Optional directories
 
 A repository may add these under `docs/`.

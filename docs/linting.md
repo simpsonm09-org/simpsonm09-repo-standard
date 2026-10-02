@@ -14,6 +14,8 @@ Each repository declares the language tools it ships, and Flint installs and run
 | --- | --- | --- |
 | TypeScript, JavaScript, JSON | `biome` | `biome-format` |
 | Python | `ruff` | `ruff-format` |
+| Kotlin | `ktlint` | `ktlint` |
+| Java | `checkstyle` | `google-java-format` |
 | Shell | `shellcheck` | `shfmt` |
 | Markdown | `rumdl` | `rumdl` |
 | YAML | `ryl` | `ryl` |

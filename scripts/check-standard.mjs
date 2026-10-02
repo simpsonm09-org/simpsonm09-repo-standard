@@ -283,6 +283,31 @@ function stringArray(value) {
   return Array.isArray(value) ? value.filter((item) => typeof item === 'string') : [];
 }
 
+function marksGenerated(root, rel) {
+  const file = join(root, '.gitattributes');
+  if (!existsSync(file)) return false;
+  const base = basename(rel);
+  for (const line of normalize(readText(file)).split('\n')) {
+    const text = line.trim();
+    if (!text || text.startsWith('#')) continue;
+    const tokens = text.split(/\s+/);
+    if (tokens.length < 2) continue;
+    const marked = tokens.slice(1).some((attr) => attr === 'linguist-generated' || attr.startsWith('linguist-generated='));
+    if (!marked) continue;
+    const pattern = tokens[0].replace(/^\//, '');
+    if (pattern === rel || pattern === base || pattern === `**/${base}`) return true;
+    if (pattern.startsWith('*') && base.endsWith(pattern.slice(1))) return true;
+  }
+  return false;
+}
+
+function hasSpecRecipe(root) {
+  const file = join(root, 'justfile');
+  if (!existsSync(file)) return false;
+  const text = normalize(readText(file)).replace(/\r\n/g, '\n');
+  return /^@?spec(\s+[^:\n]*)?:(?!=)/m.test(text);
+}
+
 function checkDocs(root, add) {
   const docsDir = join(root, 'docs');
   const markdown = listFiles(docsDir, ['.md']);
@@ -392,6 +417,14 @@ function checkDocs(root, add) {
         ok = /^\s*(openapi|asyncapi):\s*\S/m.test(text);
       }
       if (!ok) add('docs/api', `declared API spec ${spec} has no openapi/asyncapi version`);
+    }
+
+    const rel = toPosix(relative(root, full));
+    if (!marksGenerated(root, rel)) {
+      add('docs/api-generated', `${spec} is not marked linguist-generated in .gitattributes`);
+    }
+    if (!hasSpecRecipe(root)) {
+      add('docs/api-generated', 'justfile has no "spec" recipe to regenerate the API document');
     }
   }
 }

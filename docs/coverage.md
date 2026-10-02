@@ -37,6 +37,8 @@ A Python repository adds `pytest-cov`.
 
 Node runs the same script for both languages because both emit lcov.
 
+A Kotlin repository runs Kover or JaCoCo and writes the same lcov file. JVM coverage tools report XML or HTML by default, so the repository adds a converter step that writes `coverage/lcov.info`. The gate then runs unchanged.
+
 ## Run it locally
 
 ```bash

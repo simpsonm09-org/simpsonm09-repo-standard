@@ -26,6 +26,19 @@ Add a `test` job to the repository's caller workflow next to the shared jobs. Th
 
 Pin every action to a commit SHA with the version in a trailing comment. See [`pinning.md`](pinning.md).
 
+The test command is the repository's own. Python runs `pytest`, Node runs `npm test`, and Kotlin runs `./gradlew test`.
+
+## Regenerate the API document
+
+A repository that exposes an HTTP API adds a step that regenerates the OpenAPI document and fails on drift. Run it before the coverage gate. See [`documentation.md`](documentation.md).
+
+```yaml
+      - name: Check the API document
+        run: |
+          just spec
+          git diff --exit-code -- docs/openapi.*
+```
+
 ## Required check
 
 The shared status checks are `lint / flint`, `aislop / aislop`, `security / trivy`, `security / secrets`, and `standard / standard`. The `test` job is also required. Name the job `test` so the required check has one stable name across the fleet. See [`governance.md`](governance.md).
