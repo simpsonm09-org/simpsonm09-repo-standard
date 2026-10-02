@@ -28,11 +28,11 @@ A Python repository adds `pytest-cov`.
 
 ```yaml
       - name: Test with coverage
-        run: pytest --cov --cov-report=lcov:coverage/lcov.info
+        run: pytest --cov=src --cov-report=lcov:coverage/lcov.info
       - name: Patch coverage
         env:
           BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
-        run: python scripts/patch-coverage.mjs --lcov coverage/lcov.info --base "$BASE" --threshold 80
+        run: node scripts/patch-coverage.mjs --lcov coverage/lcov.info --base "$BASE" --threshold 80
 ```
 
 Node runs the same script for both languages because both emit lcov.
