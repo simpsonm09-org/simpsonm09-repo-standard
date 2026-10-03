@@ -77,6 +77,13 @@
       "description": "Resolve a repository's agent access level and capabilities."
     },
     {
+      "id": "create-agent-app",
+      "kind": "portable",
+      "args": true,
+      "run": "node scripts/create-agent-app.mjs",
+      "description": "Create the fleet agent GitHub App from the manifest and capture its credentials."
+    },
+    {
       "id": "patch-coverage",
       "kind": "portable",
       "args": true,

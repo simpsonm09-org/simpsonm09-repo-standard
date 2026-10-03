@@ -1,0 +1,15 @@
+{
+  "name": "simpsonm09-fleet-agent",
+  "url": "https://github.com/simpsonm09-org/simpsonm09-repo-standard",
+  "description": "The agent identity for the simpsonm09 fleet. It pushes branches and opens or merges pull requests at the level repo-catalog declares.",
+  "public": false,
+  "redirect_url": "http://localhost:8721/callback",
+  "default_permissions": {
+    "metadata": "read",
+    "contents": "write",
+    "pull_requests": "write",
+    "workflows": "write",
+    "checks": "read"
+  },
+  "default_events": []
+}
