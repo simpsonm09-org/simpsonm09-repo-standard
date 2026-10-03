@@ -63,7 +63,7 @@ The guard fails closed on remote writes.
 - A missing or unreadable catalog exits `2`, and the hook refuses the push.
 - A missing resolver makes the hook refuse the push, with the expected path in the message.
 - A repository absent from the roster resolves to `read`, so a branch push is refused.
-- A remote that is not under `simpsonm09-org` or `simpsonm09` is out of scope, and the hook passes it.
+- A remote that is not under `simpsonm09-org` is out of scope. The personal fork is a private mirror, so the guard leaves it alone.
 
 ## What this does not do
 
