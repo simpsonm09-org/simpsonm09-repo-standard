@@ -103,7 +103,14 @@ function failurePage(message) {
 }
 
 async function exchange(code) {
-  const response = await fetch(`https://api.github.com/app-manifests/${code}/conversions`, {
+  if (typeof code !== 'string' || !/^[A-Za-z0-9]+$/.test(code)) {
+    throw new Error('invalid code from GitHub');
+  }
+  const endpoint = new URL(`https://api.github.com/app-manifests/${code}/conversions`);
+  if (endpoint.origin !== 'https://api.github.com') {
+    throw new Error(`refusing to call ${endpoint.origin}`);
+  }
+  const response = await fetch(endpoint, {
     method: 'POST',
     headers: { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' },
   });
