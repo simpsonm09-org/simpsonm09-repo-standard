@@ -26,6 +26,7 @@ This directory holds the repository documentation. Start here, then read the gui
 
 - [Agents and skills](agents-and-skills.md) covers project-local OpenCode setup.
 - [Fleet conformance](features/fleet-conformance.md) describes the two checkers end to end.
+- [Agent access](features/agent-access.md) resolves a repository's agent level and guards pushes.
 
 ## Conventions
 

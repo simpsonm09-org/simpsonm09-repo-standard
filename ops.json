@@ -70,6 +70,13 @@
       "description": "Check one repository against the standard, applying the exception file."
     },
     {
+      "id": "agent-access",
+      "kind": "portable",
+      "args": true,
+      "run": "node scripts/agent-access.mjs",
+      "description": "Resolve a repository's agent access level and capabilities."
+    },
+    {
       "id": "patch-coverage",
       "kind": "portable",
       "args": true,

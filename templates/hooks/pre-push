@@ -1,0 +1,49 @@
+#!/bin/sh
+# Deny a push the repository's agent access level does not allow. Install this
+# file at .git/hooks/pre-push. The level comes from repo-catalog/repos.json
+# through scripts/agent-access.mjs. See docs/features/agent-access.md.
+#
+# Git calls the hook with the remote name and URL, then one line per ref on
+# stdin: <local-ref> <local-sha> <remote-ref> <remote-sha>.
+
+remote="$1"
+url="$2"
+
+# Only fleet remotes are governed. Any other remote is out of scope.
+case "$url" in
+  *github.com/simpsonm09-org/*|*github.com/simpsonm09/*) ;;
+  *) exit 0 ;;
+esac
+
+repo=$(basename "$url" .git)
+
+# The canonical clone owns the sibling repo-standard checkout, even when this
+# runs from a linked worktree.
+common=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+[ -z "$common" ] && common=$(git rev-parse --git-common-dir)
+clone=$(dirname "$common")
+resolver="$clone/../simpsonm09-repo-standard/scripts/agent-access.mjs"
+
+if [ ! -f "$resolver" ]; then
+  echo "agent-access: $resolver is missing, refusing the push to $repo" >&2
+  exit 1
+fi
+
+status=0
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ -z "$remote_ref" ] && continue
+  case "$remote_ref" in
+    refs/heads/main) capability=pushMain ;;
+    refs/tags/*) capability=pushMain ;;
+    *) capability=pushBranch ;;
+  esac
+  if ! node "$resolver" "$repo" --allows "$capability" >/dev/null 2>&1; then
+    echo "agent-access: $repo denies $capability, so the push of $remote_ref to $remote is refused" >&2
+    status=1
+  fi
+done
+
+if [ "$status" -ne 0 ]; then
+  echo "agent-access: raise the level for $repo in repo-catalog/repos.json to allow this push" >&2
+fi
+exit "$status"
