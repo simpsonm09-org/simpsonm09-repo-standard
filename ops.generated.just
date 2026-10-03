@@ -47,6 +47,10 @@ check-standard *args:
 check-repo *args:
     {{op}} run check-repo {{args}}
 
+# Resolve a repository's agent access level and capabilities.
+agent-access *args:
+    {{op}} run agent-access {{args}}
+
 # Fail when the changed lines are not covered enough.
 patch-coverage *args:
     {{op}} run patch-coverage {{args}}
