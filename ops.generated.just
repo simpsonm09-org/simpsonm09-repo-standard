@@ -51,6 +51,10 @@ check-repo *args:
 agent-access *args:
     {{op}} run agent-access {{args}}
 
+# Create the fleet agent GitHub App from the manifest and capture its credentials.
+create-agent-app *args:
+    {{op}} run create-agent-app {{args}}
+
 # Fail when the changed lines are not covered enough.
 patch-coverage *args:
     {{op}} run patch-coverage {{args}}

@@ -65,9 +65,35 @@ The guard fails closed on remote writes.
 - A repository absent from the roster resolves to `read`, so a branch push is refused.
 - A remote that is not under `simpsonm09-org` is out of scope. The personal fork is a private mirror, so the guard leaves it alone.
 
+## The agent identity
+
+The boundary is a separate identity, a GitHub App named in
+[`../../agent-app.manifest.json`](../../agent-app.manifest.json). The manifest
+requests `contents`, `pull_requests`, and `workflows` at write, and `checks` and
+`metadata` at read. It never requests `administration`, so the identity cannot change
+settings or rulesets.
+
+GitHub has no API to create an app, so
+[`../../scripts/create-agent-app.mjs`](../../scripts/create-agent-app.mjs) drives the
+manifest flow. It serves the manifest form, your browser posts it to GitHub, and
+GitHub redirects a one-time code back to the script. The script exchanges the code
+for the app id and the private key.
+
+```bash
+just create-agent-app
+```
+
+The script writes the private key under the user config directory, never the repo.
+Move it into Infisical, where the runtime loads it as `AGENT_APP_PRIVATE_KEY` beside
+`AGENT_APP_ID`.
+
+The installation is the per-repository grant. `none` and `read` get no installation.
+`propose`, `merge`, and `full` get one. `merge` adds the app to the ruleset bypass
+list with mode `pull_request`, and `full` with mode `always`.
+
 ## What this does not do
 
 The resolver and the hook are a guardrail, not a boundary. The agent still runs on
 the maintainer's credential, so an agent that bypasses the hook is not stopped. The
-boundary is a separate agent identity with a per-repository grant, and the OpenCode
-gate that denies merges and API writes. Both are tracked in the catalog roadmap.
+boundary is the agent identity above, with the OpenCode gate that denies merges and
+API writes. Both are tracked in the catalog roadmap.

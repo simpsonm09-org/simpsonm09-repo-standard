@@ -49,3 +49,5 @@ jobs:
         run: just check
       - name: Check the agent access resolver
         run: node scripts/agent-access.mjs --self-test
+      - name: Check the agent app manifest
+        run: node scripts/create-agent-app.mjs --self-test
