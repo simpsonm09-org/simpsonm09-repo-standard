@@ -9,9 +9,10 @@
 remote="$1"
 url="$2"
 
-# Only fleet remotes are governed. Any other remote is out of scope.
+# Only the organization remote is governed. The personal fork is a private
+# mirror and out of scope, so fork alignment keeps working.
 case "$url" in
-  *github.com/simpsonm09-org/*|*github.com/simpsonm09/*) ;;
+  *github.com/simpsonm09-org/*) ;;
   *) exit 0 ;;
 esac
 
