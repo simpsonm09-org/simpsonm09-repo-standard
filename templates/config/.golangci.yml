@@ -1,0 +1,18 @@
+# golangci-lint complexity limits. Flint reads this from $FLINT_CONFIG_DIR.
+version: "2"
+
+linters:
+  enable:
+    - funlen
+    - gocognit
+    - gocyclo
+    - nestif
+  settings:
+    funlen:
+      statements: 60
+    gocognit:
+      min-complexity: 15
+    gocyclo:
+      min-complexity: 10
+    nestif:
+      min-complexity: 4

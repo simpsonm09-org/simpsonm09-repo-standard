@@ -47,6 +47,36 @@ Declare `dotnet` in `mise.toml` so Flint formats C# and reports what still needs
 A repository that also wants analyzer linting enforced as a hard gate adds a `just` recipe outside Flint, because Flint has no C# lint check to activate.
 Prefer `dotnet format` over `csharpier` for the formatting Flint runs, since `dotnet-format` is Flint-managed while `csharpier` is absent from Flint's check list and would itself need a repository-owned `just` recipe.
 
+## Complexity and size
+
+The fleet holds one set of complexity limits. Each language linter reads the limit from the config file it already owns.
+
+| Metric | Default |
+| --- | --- |
+| Cognitive complexity | 15 |
+| Cyclomatic complexity | 10 |
+| Function length (statements) | 60 |
+| Block nesting depth | 4 |
+| Parameters | 6 |
+
+The config file for each linter.
+
+| Language | Config file | Setting |
+| --- | --- | --- |
+| TypeScript, JavaScript | `biome.jsonc` | `linter.rules.complexity.noExcessiveCognitiveComplexity`, option `maxAllowedComplexity` |
+| Python | `.github/config/ruff.toml` | top-level `[lint]` C901, PLR0912, PLR0915, and PLR0913, and `[lint.mccabe] max-complexity` |
+| Go | `.github/config/.golangci.yml` | `gocyclo`, `gocognit`, `funlen`, `nestif` |
+| Rust | `Cargo.toml` | `[lints.clippy]` `cognitive_complexity` and `too_many_lines` |
+| C# and .NET | `.editorconfig` | severities for `CA1502`, `CA1505`, and `CA1506`, plus a repository-owned `just` recipe |
+| Kotlin | Detekt | `CyclomaticComplexMethod`, `LongMethod`, `NestedBlockDepth` |
+| Java | checkstyle | `CyclomaticComplexity`, `NPathComplexity`, `JavaNCSS`, `MethodLength` |
+
+Flint has no C# linter, so a C# repository enforces the analyzer rules with a `just` recipe it owns. Flint manages `ktlint` for Kotlin formatting only, so Detekt carries the Kotlin limits.
+
+When existing code trips a rule, set the initial threshold at the current maximum and record why. Lower the threshold as the code improves, so the limit only decreases.
+
+[`../templates/config/`](../templates/config/) holds a minimal snippet for each linter.
+
 ## Add a check
 
 Use Flint to add or refresh one check without disturbing the others.
