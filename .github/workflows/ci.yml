@@ -51,3 +51,5 @@ jobs:
         run: node scripts/agent-access.mjs --self-test
       - name: Check the agent app manifest
         run: node scripts/create-agent-app.mjs --self-test
+      - name: Check the agent token broker
+        run: node scripts/agent-token.mjs --self-test
