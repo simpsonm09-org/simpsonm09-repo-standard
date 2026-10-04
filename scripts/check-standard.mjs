@@ -316,18 +316,28 @@ function marksGenerated(root, rel) {
   return false;
 }
 
-function hasSpecRecipe(root) {
+// A thin justfile can delegate its recipes to imported files. Read the justfile
+// and each file it imports one level deep, so a recipe check sees the combined
+// text. Paths are resolved from the repository root.
+function justfileText(root) {
   const file = join(root, 'justfile');
-  if (!existsSync(file)) return false;
+  if (!existsSync(file)) return '';
   const text = normalize(readText(file)).replace(/\r\n/g, '\n');
-  return /^@?spec(\s+[^:\n]*)?:(?!=)/m.test(text);
+  let combined = text;
+  for (const match of text.matchAll(/^\s*import\s+['"]([^'"]+)['"]/gm)) {
+    const imported = join(root, match[1]);
+    if (!existsSync(imported)) continue;
+    combined += '\n' + normalize(readText(imported)).replace(/\r\n/g, '\n');
+  }
+  return combined;
+}
+
+function hasSpecRecipe(root) {
+  return /^@?spec(\s+[^:\n]*)?:(?!=)/m.test(justfileText(root));
 }
 
 function hasCoverageRecipe(root) {
-  const file = join(root, 'justfile');
-  if (!existsSync(file)) return false;
-  const text = normalize(readText(file)).replace(/\r\n/g, '\n');
-  return /^@?coverage(\s+[^:\n]*)?:(?!=)/m.test(text);
+  return /^@?coverage(\s+[^:\n]*)?:(?!=)/m.test(justfileText(root));
 }
 
 function checkDocs(root, add) {
