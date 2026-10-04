@@ -49,10 +49,12 @@ ask about a concrete action instead of translating it to a capability by hand.
 node scripts/agent-access.mjs simpsonm09-repo-catalog --command "gh pr merge 1"        # exits 1, needs mergePr
 node scripts/agent-access.mjs simpsonm09-browser-calculator --command "gh pr merge 1" # exits 0
 node scripts/agent-access.mjs simpsonm09-repo-catalog --command "gh pr create"        # exits 0, needs openPr
+node scripts/agent-access.mjs simpsonm09-repo-standard --command "git push --dry-run origin main" --remote-url "https://github.com/simpsonm09/simpsonm09-repo-standard.git"  # exits 0, fork is out of scope
 ```
 
-[`classify(command)`](../../scripts/agent-access.mjs) is pure and returns the
-capability or `null`. The table is ordered, first match wins.
+[`classify(command, remoteUrl)`](../../scripts/agent-access.mjs) is pure and returns
+the capability or `null`. The `remoteUrl` is optional. The table is ordered, first
+match wins.
 
 | Command | Needs |
 | --- | --- |
@@ -63,9 +65,31 @@ capability or `null`. The table is ordered, first match wins.
 | `gh api` with `-X` or `--method` `POST`/`PUT`/`PATCH`/`DELETE` | `admin` |
 | any other command | none, allowed |
 
-`decide(level, command)` returns `{ capability, allowed }`. A command with no
-capability reaches nothing governed, so every level allows it. The command mode
-exits `0` when allowed and `1` when denied.
+A `git push` is parsed by tokens, not by position. A flag token (leading `-`) is
+skipped, the first non-flag token is the remote when it is not a refspec, and the
+remaining non-flag tokens are refspecs. A refspec naming `main` or
+`refs/heads/main`, including a destination form such as `X:main`, is `pushMain`.
+Any other branch refspec is `pushBranch`, and no refspec is `pushBranch`. This
+handles a flag before the remote or the ref, so `git push --dry-run origin main`
+is `pushMain`.
+
+`decide(level, command, remoteUrl)` returns `{ capability, allowed }`. A command
+with no capability reaches nothing governed, so every level allows it. The command
+mode exits `0` when allowed and `1` when denied.
+
+## The push scope
+
+A `git push` is governed only when it targets the organization remote. The gate
+and the [push hook](#the-push-guard) share one rule: a remote URL under
+`github.com/simpsonm09-org/` is in scope, and every other remote, including the
+personal fork under `github.com/simpsonm09/`, is out of scope.
+
+The scope enters through the optional remote URL. When it is known and does not
+contain `simpsonm09-org`, `classify` returns `null` for the push, so the level does
+not govern it and every level allows it. When the URL is unknown, the push stays
+governed, so a caller that cannot resolve the remote fails closed. The `--command`
+CLI mode takes the URL as `--remote-url <url>`; without it the behavior is
+unchanged.
 
 ## The drift check
 
@@ -93,7 +117,9 @@ tree cannot raise a level. A missing catalog or clone denies remote writes.
 [`../../templates/hooks/pre-push`](../../templates/hooks/pre-push) installs at
 `.git/hooks/pre-push`. It reads the refs on stdin, resolves the repository from the
 remote URL, and refuses a push the level does not allow. A push to `main` or a tag
-needs `pushMain`, and a push to any other branch needs `pushBranch`.
+needs `pushMain`, and a push to any other branch needs `pushBranch`. It governs a
+URL under `github.com/simpsonm09-org/` and passes every other remote, so the
+resolver's push scope above matches the hook exactly.
 
 ```mermaid
 flowchart LR
@@ -111,7 +137,7 @@ The guard fails closed on remote writes.
 - A missing or unreadable catalog exits `2`, and the hook refuses the push.
 - A missing resolver makes the hook refuse the push, with the expected path in the message.
 - A repository absent from the roster resolves to `read`, so a branch push is refused.
-- A remote that is not under `simpsonm09-org` is out of scope. The personal fork is a private mirror, so the guard leaves it alone.
+- A remote that is not under `simpsonm09-org` is out of scope. The personal fork is a private mirror, so the guard leaves it alone. The resolver agrees when the gate passes the remote URL it is pushing to.
 
 ## The agent identity
 
