@@ -1,0 +1,28 @@
+{
+  "org": "simpsonm09-org",
+  "agentAccessDefaults": {
+    "fixture": "read"
+  },
+  "repos": [
+    {
+      "name": "simpsonm09-fixture-nest",
+      "tier": "fixture",
+      "agentAccess": "propose"
+    },
+    {
+      "name": "simpsonm09-fixture-go",
+      "tier": "fixture",
+      "agentAccess": "full"
+    },
+    {
+      "name": "simpsonm09-fixture-rust",
+      "tier": "fixture",
+      "agentAccess": "merge"
+    },
+    {
+      "name": "simpsonm09-fixture-dotnet",
+      "tier": "fixture",
+      "agentAccess": "read"
+    }
+  ]
+}
