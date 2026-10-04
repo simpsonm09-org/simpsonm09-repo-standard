@@ -38,10 +38,16 @@
       "description": "Scan git history for secrets with gitleaks."
     },
     {
+      "id": "test",
+      "kind": "portable",
+      "run": "node scripts/agent-access.test.mjs",
+      "description": "Run the agent-access enforcement tests over the fixture catalog and the pre-push hook."
+    },
+    {
       "id": "verify",
       "kind": "portable",
       "run": "node scripts/verify.mjs",
-      "description": "Run the local CI mirror: lint, aislop, security, and secret scan."
+      "description": "Run the local CI mirror: lint, test, aislop, security, and secret scan."
     },
     {
       "id": "prune",

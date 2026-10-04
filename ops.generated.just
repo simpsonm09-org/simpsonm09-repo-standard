@@ -27,7 +27,11 @@ security:
 secret-scan:
     {{op}} run secret-scan
 
-# Run the local CI mirror: lint, aislop, security, and secret scan.
+# Run the agent-access enforcement tests over the fixture catalog and the pre-push hook.
+test:
+    {{op}} run test
+
+# Run the local CI mirror: lint, test, aislop, security, and secret scan.
 verify:
     {{op}} run verify
 

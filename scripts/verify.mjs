@@ -5,9 +5,11 @@ import { isMain } from './lib/proc.mjs';
 import { runLint } from './lint.mjs';
 import { runSecretScan } from './secret-scan.mjs';
 import { runSecurity } from './security.mjs';
+import { runTest } from './agent-access.test.mjs';
 
 const STEPS = [
   ['lint', runLint],
+  ['test', runTest],
   ['aislop', runAislop],
   ['security', runSecurity],
   ['secret-scan', runSecretScan],
