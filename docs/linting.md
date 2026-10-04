@@ -67,11 +67,11 @@ The config file for each linter.
 | Python | `.github/config/ruff.toml` | top-level `[lint]` C901, PLR0912, PLR0915, and PLR0913, and `[lint.mccabe] max-complexity` |
 | Go | `.github/config/.golangci.yml` | `gocyclo`, `gocognit`, `funlen`, `nestif` |
 | Rust | `Cargo.toml` | `[lints.clippy]` `cognitive_complexity` and `too_many_lines` |
-| C# and .NET | `.editorconfig` | severities for `CA1502`, `CA1505`, and `CA1506`, plus a repository-owned `just` recipe |
+| C# and .NET | `.globalconfig` | `is_global = true` and severities for `CA1502`, `CA1505`, and `CA1506`, plus a repository-owned `just` recipe |
 | Kotlin | Detekt | `CyclomaticComplexMethod`, `LongMethod`, `NestedBlockDepth` |
 | Java | checkstyle | `CyclomaticComplexity`, `NPathComplexity`, `JavaNCSS`, `MethodLength` |
 
-Flint has no C# linter, so a C# repository enforces the analyzer rules with a `just` recipe it owns. Flint manages `ktlint` for Kotlin formatting only, so Detekt carries the Kotlin limits.
+Flint has no C# linter, so a C# repository enforces the analyzer rules with a `just` recipe it owns. A C# repository puts the analyzer severities in a repository-local `.globalconfig`, a Roslyn global analyzer config, and wires it through `Directory.Build.props` when a solution spans several projects. The shared `.editorconfig` is byte-identical across the fleet and a repository that edits it fails the `standard` check, so repository-local analyzer rules never go there. Flint manages `ktlint` for Kotlin formatting only, so Detekt carries the Kotlin limits.
 
 When existing code trips a rule, set the initial threshold at the current maximum and record why. Lower the threshold as the code improves, so the limit only decreases.
 

@@ -1,5 +1,0 @@
-# .NET analyzer severities for complexity. Merge into the repository .editorconfig.
-[*.cs]
-dotnet_diagnostic.CA1502.severity = warning
-dotnet_diagnostic.CA1505.severity = warning
-dotnet_diagnostic.CA1506.severity = warning

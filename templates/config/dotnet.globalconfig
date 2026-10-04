@@ -1,0 +1,7 @@
+# .NET analyzer severities for complexity. A repository-local Roslyn global
+# analyzer config; wire it through Directory.Build.props in a multi-project solution.
+is_global = true
+
+dotnet_diagnostic.CA1502.severity = warning
+dotnet_diagnostic.CA1505.severity = warning
+dotnet_diagnostic.CA1506.severity = warning
