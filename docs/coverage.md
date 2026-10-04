@@ -17,6 +17,16 @@ does not set a whole-repository floor.
 `pytest`, or a script under `scripts/`. The workflow checks out the pinned standard, runs
 `just coverage`, runs the gate, and uploads `coverage/lcov.info` as the `coverage` artifact.
 
+The recipe is self-contained. The shared workflow installs only the pinned tools with
+`jdx/mise-action`, so it never installs the repository's language dependencies. A recipe
+that assumes they are present fails in CI. Install the repository's own dependencies first
+(`npm ci`, `pip install -e '.[test]'`, and so on), then run the suite with coverage and
+write `coverage/lcov.info`.
+
+The workflow checks the standard out into `.standard/` inside the checkout. A test runner
+that globs the repository must exclude `.standard/`, or it collects the standard's own
+files.
+
 A repository that calls the shared workflow must define the recipe. The standard check
 enforces it with `ci/coverage-recipe`.
 
