@@ -24,5 +24,5 @@ description = "Auto-fix lint issues"
 run = "flint run --fix"
 
 [tasks.test]
-description = "Run the agent-access enforcement tests"
-run = "node scripts/agent-access.test.mjs"
+description = "Run the agent-access enforcement tests and the patch-coverage matcher tests"
+run = "node scripts/test.mjs"

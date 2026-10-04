@@ -12,6 +12,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { EXIT } from './lib/exit.mjs';
+import { isMain } from './lib/proc.mjs';
 
 function parseArgs(argv) {
   const options = { lcov: 'coverage/lcov.info', base: 'origin/main', threshold: 80, help: false };
@@ -25,7 +26,7 @@ function parseArgs(argv) {
   return options;
 }
 
-function parseLcov(text) {
+export function parseLcov(text) {
   const files = new Map();
   let current = null;
   for (const line of text.split('\n')) {
@@ -67,7 +68,7 @@ function changedLines(base) {
   return result;
 }
 
-function matchReport(files, rel) {
+export function matchReport(files, rel) {
   const suffix = '/' + rel;
   for (const [name, data] of files) {
     if (name === rel || name.endsWith(suffix)) return data;
@@ -115,4 +116,4 @@ function main() {
   process.exit(percent >= options.threshold ? EXIT.OK : EXIT.FAIL);
 }
 
-main();
+if (isMain(import.meta.url)) main();

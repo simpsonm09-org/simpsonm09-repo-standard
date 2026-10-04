@@ -40,8 +40,20 @@
     {
       "id": "test",
       "kind": "portable",
+      "run": "node scripts/test.mjs",
+      "description": "Run every test suite."
+    },
+    {
+      "id": "test-agent-access",
+      "kind": "portable",
       "run": "node scripts/agent-access.test.mjs",
       "description": "Run the agent-access enforcement tests over the fixture catalog and the pre-push hook."
+    },
+    {
+      "id": "test-patch-coverage",
+      "kind": "portable",
+      "run": "node scripts/patch-coverage.test.mjs",
+      "description": "Run the patch-coverage matcher tests."
     },
     {
       "id": "verify",
