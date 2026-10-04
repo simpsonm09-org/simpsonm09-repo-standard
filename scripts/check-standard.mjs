@@ -191,6 +191,21 @@ function checkCi(root, add) {
     }
   }
 
+  let callsCoverage = false;
+  for (const block of jobs.values()) {
+    const uses = findUses(block);
+    if (!uses) continue;
+    const externalMatch = external.exec(uses);
+    const localMatch = local.exec(uses);
+    if (externalMatch?.[1] === 'coverage' || (isSelf && localMatch?.[1] === 'coverage')) {
+      callsCoverage = true;
+      break;
+    }
+  }
+  if (callsCoverage && !hasCoverageRecipe(root)) {
+    add('ci/coverage-recipe', 'ci.yml calls the shared coverage workflow but justfile has no "coverage" recipe');
+  }
+
   for (const match of text.matchAll(/^\s*uses:\s*(\S+)/gm)) {
     const ref = match[1];
     if (!ref.includes(`${STANDARD_REPO}/`)) continue;
@@ -306,6 +321,13 @@ function hasSpecRecipe(root) {
   if (!existsSync(file)) return false;
   const text = normalize(readText(file)).replace(/\r\n/g, '\n');
   return /^@?spec(\s+[^:\n]*)?:(?!=)/m.test(text);
+}
+
+function hasCoverageRecipe(root) {
+  const file = join(root, 'justfile');
+  if (!existsSync(file)) return false;
+  const text = normalize(readText(file)).replace(/\r\n/g, '\n');
+  return /^@?coverage(\s+[^:\n]*)?:(?!=)/m.test(text);
 }
 
 function checkDocs(root, add) {

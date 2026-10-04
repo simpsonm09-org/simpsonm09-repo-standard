@@ -10,7 +10,7 @@ This document defines the branch model and the protection rules for repositories
 
 ## Pull requests
 
-A pull request against `main` runs the shared checks from the repository. The checks are lint, aislop, security, and standard.
+A pull request against `main` runs the shared checks from the repository. The checks are lint, aislop, security, standard, and coverage.
 
 ## Protection rules
 
@@ -26,7 +26,7 @@ Targets `refs/heads/main`.
 - Extra approval for unattributed changes is off. GitHub enables `require_extra_approval_for_unattributed_changes` when the field is absent, and that would demand an approval a solo maintainer cannot give. The ruleset sets it to `false` explicitly.
 - Dismiss stale approvals and require conversation resolution.
 - Require signed commits on the branch.
-- Require the lint, aislop, security, standard, and test status checks, and require branches to be up to date.
+- Require the lint, aislop, security, standard, coverage, and test status checks, and require branches to be up to date.
 - No linear-history rule. Merge commits are allowed.
 - Bypass list is the organization admin role with mode `pull_request`, plus the agent App on a `merge` or `full` repository. The admin is the maintainer's escape hatch. The App bypass lets the agent land its own green pull request without a direct push. Every bypass is recorded in the audit log.
 

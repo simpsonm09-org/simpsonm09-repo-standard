@@ -42,6 +42,7 @@
           { "context": "security / trivy" },
           { "context": "security / secrets" },
           { "context": "standard / standard" },
+          { "context": "coverage / coverage" },
           { "context": "test" }
         ]
       }

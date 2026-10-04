@@ -1,0 +1,61 @@
+name: coverage
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  coverage:
+    if: github.repository_owner == 'simpsonm09-org'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Resolve the pinned standard ref
+        id: pin
+        env:
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+        run: |
+          ref="${WORKFLOW_REF##*@}"
+          if ! printf '%s' "$ref" | grep -qE '^[0-9a-f]{40}$'; then
+            ref="$(grep -ohE 'repo-standard/\.github/workflows/[a-z0-9-]+\.yml@[0-9a-f]{40}' .github/workflows/ci.yml | head -n1 | sed 's/.*@//')"
+          fi
+          if [ -z "$ref" ]; then
+            ref="${GITHUB_SHA}"
+          fi
+          echo "resolved standard ref: ${ref:-<none>}"
+          test -n "$ref"
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+      - name: Checkout the pinned standard
+        if: github.repository != 'simpsonm09-org/simpsonm09-repo-standard'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: simpsonm09-org/simpsonm09-repo-standard
+          ref: ${{ steps.pin.outputs.ref }}
+          path: .standard
+          persist-credentials: false
+      - name: Install pinned tools
+        uses: jdx/mise-action@9149ea85001c7435d5a66bb127d6a1b6227cb0a5 # v5.0.0
+      - name: Run the coverage recipe
+        run: just coverage
+      - name: Patch coverage gate
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [ "${GITHUB_REPOSITORY}" = "simpsonm09-org/simpsonm09-repo-standard" ]; then
+            node scripts/patch-coverage.mjs --lcov coverage/lcov.info --base "$BASE" --mode lines
+          else
+            node .standard/scripts/patch-coverage.mjs --lcov coverage/lcov.info --base "$BASE" --mode lines
+          fi
+      - name: Upload the coverage report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage
+          path: coverage/lcov.info
+          if-no-files-found: error

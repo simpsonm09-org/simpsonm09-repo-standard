@@ -14,10 +14,13 @@ Keep the recipes thin. A recipe calls a portable executable such as `mise`, `npm
 | `just lint-fix` | Fixes what the linters can fix. |
 | `just aislop` | Runs the AI-slop gate. |
 | `just test` | Runs the test suite. |
+| `just coverage` | Runs the suite with coverage and writes `coverage/lcov.info`. |
 | `just verify` | Runs the full local check. |
 | `just prune` | Prunes remote-tracking refs and deletes local branches merged into `main`. |
 
 Keep the recipe set small and conventional so a reader can guess a name. Arguments are positional, as in `just emit config.json out.json`.
+
+A repository that calls the shared coverage workflow defines the `coverage` recipe, which runs the suite with coverage and writes `coverage/lcov.info`. The standard check requires the recipe whenever the workflow is called. See [`coverage.md`](coverage.md).
 
 ## Twin operations
 
