@@ -12,12 +12,14 @@
 // repository's level grants the capability, and 1 when it does not. A missing
 // catalog exits 2, so a caller fails closed on remote writes.
 
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const DEFAULT_CATALOG = join(ROOT, '..', 'simpsonm09-repo-catalog', 'repos.json');
+const CATALOG_DIR = join(ROOT, '..', 'simpsonm09-repo-catalog');
+const DEFAULT_CATALOG = join(CATALOG_DIR, 'repos.json');
 
 export const LEVELS = ['none', 'read', 'propose', 'merge', 'full'];
 
@@ -38,6 +40,24 @@ export const FALLBACK_LEVEL = 'read';
 
 export function loadCatalog(path = DEFAULT_CATALOG) {
   return JSON.parse(readFileSync(path, 'utf8'));
+}
+
+// Read the committed catalog from the clone, preferring the organization ref the
+// agent cannot push to. This keeps the level out of the working tree, so an
+// uncommitted edit cannot raise it.
+export function loadCommittedCatalog(dir = CATALOG_DIR) {
+  for (const ref of ['upstream/main', 'main']) {
+    try {
+      const out = execFileSync('git', ['-C', dir, 'show', `${ref}:repos.json`], {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      });
+      return JSON.parse(out);
+    } catch {
+      // Try the next ref, then give up.
+    }
+  }
+  return null;
 }
 
 export function resolveLevel(catalog, repoName) {
@@ -85,7 +105,7 @@ export function selfTest() {
 }
 
 function parseArgs(argv) {
-  const args = { repo: undefined, catalog: DEFAULT_CATALOG, allows: undefined, json: false };
+  const args = { repo: undefined, catalog: undefined, allows: undefined, json: false };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--catalog') args.catalog = argv[(index += 1)];
@@ -117,9 +137,11 @@ function main() {
 
   let catalog;
   try {
-    catalog = loadCatalog(args.catalog);
+    catalog = args.catalog
+      ? loadCatalog(args.catalog)
+      : loadCommittedCatalog() ?? loadCatalog(DEFAULT_CATALOG);
   } catch {
-    process.stderr.write(`agent-access: cannot read ${args.catalog}, denying remote writes\n`);
+    process.stderr.write('agent-access: cannot read the catalog, denying remote writes\n');
     process.exit(2);
   }
 

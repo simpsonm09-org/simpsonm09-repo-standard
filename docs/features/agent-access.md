@@ -40,6 +40,10 @@ node scripts/agent-access.mjs simpsonm09-repo-catalog --allows pushMain  # exits
 The `--allows` mode exits `0` when the level grants the capability and `1` when it
 does not, so a shell caller branches on the exit code.
 
+The resolver reads the committed catalog from the clone, preferring the
+organization ref the agent cannot push to, so an uncommitted edit to the working
+tree cannot raise a level. A missing catalog or clone denies remote writes.
+
 ## The push guard
 
 [`../../templates/hooks/pre-push`](../../templates/hooks/pre-push) installs at
