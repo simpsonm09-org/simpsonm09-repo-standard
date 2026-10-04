@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Print the ruleset payload for one repository. On a merge or full repository the
-// agent App joins the bypass list with pull_request mode, so it can land its own
-// green pull requests without gaining a direct push to main. See docs/governance.md.
+// agent App joins the bypass list. The mode follows the level: pull_request lets
+// the App land its own green pull requests, and always additionally lets a full
+// repository push to main directly. See docs/governance.md.
 //
 // Usage:
 //   node scripts/ruleset-payload.mjs <ruleset.json> --level <level> [--app-id <id>]
@@ -10,16 +11,21 @@
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
+// The App bypass mode per level. A level absent from the table grants the App no
+// bypass. pull_request and always are the two modes GitHub accepts for an
+// Integration bypass actor, so the level picks between them.
+const APP_BYPASS_MODE = { merge: 'pull_request', full: 'always' };
+
 export function buildPayload(ruleset, level, appId) {
   const payload = JSON.parse(JSON.stringify(ruleset));
-  if (payload.name !== 'protect-main' || !appId || !['merge', 'full'].includes(level)) {
+  if (payload.name !== 'protect-main' || !appId || !APP_BYPASS_MODE[level]) {
     return payload;
   }
   const id = Number(appId);
   payload.bypass_actors = (payload.bypass_actors ?? []).filter(
     (actor) => !(actor.actor_type === 'Integration' && Number(actor.actor_id) === id),
   );
-  payload.bypass_actors.push({ actor_id: id, actor_type: 'Integration', bypass_mode: 'pull_request' });
+  payload.bypass_actors.push({ actor_id: id, actor_type: 'Integration', bypass_mode: APP_BYPASS_MODE[level] });
   return payload;
 }
 
@@ -44,18 +50,30 @@ function selfTest() {
   const merge = buildPayload(base, 'merge', '5181331');
   assert(merge.bypass_actors.some((a) => a.actor_type === 'Integration' && a.actor_id === 5181331), 'merge adds the app');
   assert(merge.bypass_actors.some((a) => a.actor_type === 'OrganizationAdmin'), 'merge keeps the admin');
+  assert(appMode(merge) === 'pull_request', 'merge bypass mode is pull_request');
+
+  const full = buildPayload(base, 'full', '5181331');
+  assert(appMode(full) === 'always', 'full bypass mode is always');
+
+  assert(appMode(merge) !== appMode(full), 'merge and full modes differ');
 
   const propose = buildPayload(base, 'propose', '5181331');
-  assert(!propose.bypass_actors.some((a) => a.actor_type === 'Integration'), 'propose omits the app');
+  assert(appMode(propose) === undefined, 'propose omits the app');
 
   const noApp = buildPayload(base, 'merge', undefined);
-  assert(!noApp.bypass_actors.some((a) => a.actor_type === 'Integration'), 'no app id omits the app');
+  assert(appMode(noApp) === undefined, 'no app id omits the app');
 
   const tags = buildPayload({ name: 'protect-tags' }, 'merge', '5181331');
-  assert(!(tags.bypass_actors ?? []).some((a) => a.actor_type === 'Integration'), 'other rulesets are untouched');
+  assert(appMode(tags) === undefined, 'other rulesets are untouched');
 
   const idempotent = buildPayload(merge, 'merge', '5181331');
   assert(idempotent.bypass_actors.filter((a) => a.actor_type === 'Integration').length === 1, 'no duplicate app');
+}
+
+// The bypass mode the payload gives the App, or undefined when the App is absent.
+// The self-test reads the mode, not just the actor, so a wrong mode is caught.
+function appMode(payload) {
+  return (payload.bypass_actors ?? []).find((actor) => actor.actor_type === 'Integration')?.bypass_mode;
 }
 
 function main() {

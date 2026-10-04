@@ -7,6 +7,7 @@
 //
 // Usage:
 //   node scripts/check-agent-access.mjs [--catalog <path>] [--org <owner>] [--app-id <id>] [--json]
+//   node scripts/check-agent-access.mjs --self-test
 //
 // It exits 0 when every repository matches, and 1 when any repository drifts.
 // This is a local check; it is not wired into CI.
@@ -30,6 +31,17 @@ export function appBypassExpected(level) {
   return (CAPABILITIES[level] ?? []).includes('mergePr');
 }
 
+// The bypass mode the level expects for the App, or null when the level grants no
+// App bypass. A full repository pushes to main directly, so its mode is always; a
+// merge repository lands its own pull requests, so its mode is pull_request. This
+// is the same mapping ruleset-payload.mjs applies, kept in one place so the check
+// and the payload cannot disagree.
+export function expectedBypassMode(level) {
+  if (level === 'full') return 'always';
+  if (level === 'merge') return 'pull_request';
+  return null;
+}
+
 // The ruleset rule carries the approval count; the default is 0 when absent.
 export function approvalCount(ruleset) {
   const rule = (ruleset.rules ?? []).find((entry) => entry.type === 'pull_request');
@@ -42,6 +54,15 @@ export function appBypassPresent(ruleset, appId) {
   );
 }
 
+// The bypass mode the App carries on the ruleset, or null when the App is absent.
+// Compare reads it, not just the actor, so a wrong mode is drift.
+export function appBypassMode(ruleset, appId) {
+  const actor = (ruleset.bypass_actors ?? []).find(
+    (entry) => entry.actor_type === 'Integration' && Number(entry.actor_id) === Number(appId),
+  );
+  return actor ? actor.bypass_mode ?? null : null;
+}
+
 // One repository's verdict. A null ruleset means the live read failed, which is
 // drift: an unreadable ruleset cannot prove the declared level.
 export function compare(repo, level, ruleset, appId) {
@@ -49,6 +70,8 @@ export function compare(repo, level, ruleset, appId) {
   const approvals = approvalCount(ruleset);
   const expectedBypass = appBypassExpected(level);
   const hasBypass = appBypassPresent(ruleset, appId);
+  const wantMode = expectedBypassMode(level);
+  const gotMode = appBypassMode(ruleset, appId);
   if (approvals !== 1) {
     return { repo, level, approvals, hasBypass, ok: false, reason: `approval count is ${approvals}, expected 1` };
   }
@@ -56,6 +79,9 @@ export function compare(repo, level, ruleset, appId) {
     const want = expectedBypass ? 'present' : 'absent';
     const got = hasBypass ? 'present' : 'absent';
     return { repo, level, approvals, hasBypass, ok: false, reason: `App bypass is ${got}, expected ${want} for ${level}` };
+  }
+  if (gotMode !== wantMode) {
+    return { repo, level, approvals, hasBypass, ok: false, reason: `App bypass mode is ${gotMode}, expected ${wantMode} for ${level}` };
   }
   return { repo, level, approvals, hasBypass, ok: true };
 }
@@ -76,19 +102,76 @@ function protectMain(org, repo, branch) {
 }
 
 function parseArgs(argv) {
-  const args = { catalog: undefined, org: DEFAULT_ORG, appId: DEFAULT_APP_ID, json: false };
+  const args = { catalog: undefined, org: DEFAULT_ORG, appId: DEFAULT_APP_ID, json: false, selfTest: false };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--catalog') args.catalog = argv[(index += 1)];
     else if (arg === '--org') args.org = argv[(index += 1)];
     else if (arg === '--app-id') args.appId = Number(argv[(index += 1)]);
     else if (arg === '--json') args.json = true;
+    else if (arg === '--self-test') args.selfTest = true;
   }
   return args;
 }
 
+// The mode predicate and compare, over fixed rulesets, without the GitHub API. It
+// proves the two drift directions the live check exists to catch: the mode differs
+// from the level's expectation, and the App is present when the level forbids it.
+function selfTest() {
+  const assert = (condition, message) => {
+    if (!condition) throw new Error(message);
+  };
+  const APP = 5181331;
+  const rules = [{ type: 'pull_request', parameters: { required_approving_review_count: 1 } }];
+  const withApp = (mode) => ({
+    rules,
+    bypass_actors: [
+      { actor_type: 'OrganizationAdmin', bypass_mode: 'pull_request' },
+      { actor_id: APP, actor_type: 'Integration', bypass_mode: mode },
+    ],
+  });
+
+  assert(expectedBypassMode('full') === 'always', 'full expects mode always');
+  assert(expectedBypassMode('merge') === 'pull_request', 'merge expects mode pull_request');
+  for (const level of ['none', 'read', 'propose']) {
+    assert(expectedBypassMode(level) === null, `${level} expects no app bypass`);
+  }
+
+  assert(appBypassMode(withApp('always'), APP) === 'always', 'reads the app mode');
+  assert(appBypassMode({ rules }, APP) === null, 'no app reads as null mode');
+
+  assert(compare('full', 'full', withApp('always'), APP).ok, 'full with always is clean');
+  assert(compare('merge', 'merge', withApp('pull_request'), APP).ok, 'merge with pull_request is clean');
+
+  const wrongFull = compare('full', 'full', withApp('pull_request'), APP);
+  assert(!wrongFull.ok && wrongFull.reason.includes('pull_request') && wrongFull.reason.includes('always'),
+    'full with pull_request is drift naming the modes');
+
+  const wrongMerge = compare('merge', 'merge', withApp('always'), APP);
+  assert(!wrongMerge.ok && wrongMerge.reason.includes('always') && wrongMerge.reason.includes('pull_request'),
+    'merge with always is drift naming the modes');
+
+  const proposeWithApp = compare('propose', 'propose', withApp('pull_request'), APP);
+  assert(!proposeWithApp.ok && proposeWithApp.reason.includes('App bypass is present'),
+    'propose with an app is drift');
+
+  const missing = compare('full', 'full', { rules }, APP);
+  assert(!missing.ok && missing.reason.includes('App bypass is absent'), 'full without an app is drift');
+  assert(!compare('full', 'full', null, APP).ok, 'unreadable ruleset is drift');
+}
+
 function main() {
   const args = parseArgs(process.argv.slice(2));
+  if (args.selfTest) {
+    try {
+      selfTest();
+      process.stdout.write('check-agent-access: self-test ok\n');
+    } catch (error) {
+      process.stderr.write(`check-agent-access: self-test failed: ${error.message}\n`);
+      process.exit(1);
+    }
+    return;
+  }
 
   let catalog;
   try {

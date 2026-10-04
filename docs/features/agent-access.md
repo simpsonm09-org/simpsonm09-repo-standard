@@ -97,7 +97,10 @@ unchanged.
 the declared level per repository and the live `protect-main` ruleset, then reports
 the approval count and whether the App bypass matches. The App is present on the
 bypass exactly when the level grants a merge, so `merge` and `full` expect it and
-`none`, `read`, and `propose` do not.
+`none`, `read`, and `propose` do not. The mode must match the level too: `merge`
+expects the App with `pull_request`, and `full` expects `always`, because a `full`
+repository pushes to `main` directly. A correct App with the wrong mode is drift,
+and the reason names the mode it found and the one it expected.
 
 ```bash
 node scripts/check-agent-access.mjs          # exits 1 on drift, 0 when clean
