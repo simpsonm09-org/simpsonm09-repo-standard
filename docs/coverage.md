@@ -39,6 +39,22 @@ Node runs the same script for both languages because both emit lcov.
 
 A Kotlin repository runs Kover or JaCoCo and writes the same lcov file. JVM coverage tools report XML or HTML by default, so the repository adds a converter step that writes `coverage/lcov.info`. The gate then runs unchanged.
 
+A Go repository writes a coverprofile, not lcov, so it adds a converter that rewrites the coverprofile to `coverage/lcov.info`.
+
+```bash
+go test ./... -coverprofile=coverage/cover.out
+node scripts/coverprofile-to-lcov.mjs
+```
+
+A C#/.NET repository runs coverlet through `dotnet test`. Coverlet reports cobertura XML by default, so the repository adds a converter that rewrites it to `coverage/lcov.info`.
+
+```bash
+dotnet test --collect:"XPlat Code Coverage"
+node scripts/cobertura-to-lcov.mjs
+```
+
+The Go and C#/.NET converters are repository-owned, following the Kotlin `jacoco-to-lcov.mjs` pattern. The gate then runs unchanged.
+
 ## Run it locally
 
 ```bash
