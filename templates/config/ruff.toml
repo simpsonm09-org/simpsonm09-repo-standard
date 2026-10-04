@@ -1,0 +1,12 @@
+# Ruff complexity limits. Merge into the repository's pyproject.toml [tool.ruff] tables.
+
+[lint]
+extend-select = ["C901", "PLR0912", "PLR0913", "PLR0915"]
+
+[lint.mccabe]
+max-complexity = 10
+
+[lint.pylint]
+max-args = 6
+max-branches = 10
+max-statements = 60

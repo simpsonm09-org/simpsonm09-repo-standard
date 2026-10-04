@@ -1,0 +1,3 @@
+# Clippy complexity thresholds. Enable the lints in Cargo.toml [lints.clippy].
+cognitive-complexity-threshold = 15
+too-many-lines-threshold = 60

@@ -1,0 +1,13 @@
+// Biome cognitive complexity limit. Merge into the repository's biome.jsonc.
+{
+  "linter": {
+    "rules": {
+      "complexity": {
+        "noExcessiveCognitiveComplexity": {
+          "level": "error",
+          "options": { "maxAllowedComplexity": 15 }
+        }
+      }
+    }
+  }
+}
