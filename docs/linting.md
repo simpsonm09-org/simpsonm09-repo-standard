@@ -30,9 +30,22 @@ Prefer a formatter for every file type the repository ships, so lint and format 
 
 ### Go, C#, and Rust
 
-Flint manages the Go and Rust tools in the table above. Declaring `golangci-lint`, `gofmt`, `cargo-clippy`, or `cargo-fmt` in `mise.toml` activates the matching check, so no `just` recipe is needed. Flint names the Rust checks `cargo-clippy` and `cargo-fmt`, which run `clippy` and `rustfmt`. `golangci-lint` reads `.golangci.yml` from `$FLINT_CONFIG_DIR` (`.github/config`); the other checks need no Flint-managed config.
+Flint activates the Go, Rust, and C# checks through each language's toolchain, so declare the toolchain in `mise.toml` and no `just` recipe is needed.
+For Go, declare `go`, which provides `gofmt`, and declare `golangci-lint` for the linter.
+For Rust, declare `rust` with the `clippy` and `rustfmt` components, which provides `cargo-clippy` and `cargo-fmt`.
+For C#, declare `dotnet`, which provides `dotnet-format`.
+Flint names the Rust checks `cargo-clippy` and `cargo-fmt`.
+`cargo-clippy` runs `cargo clippy`, and `cargo-fmt` runs `cargo fmt`.
+`cargo-fmt` and `dotnet-format` are not `mise.toml` keys, so declaring either activates nothing.
+`golangci-lint` reads `.golangci.yml` from `$FLINT_CONFIG_DIR` (`.github/config`), and `cargo-fmt` reads `rustfmt.toml` from the same directory.
+`gofmt`, `cargo-clippy`, and `dotnet-format` need no Flint-managed config.
 
-C# is the exception. Flint ships one C# check, `dotnet-format`, which runs `dotnet format` and is classified as the formatter. Flint exposes no separate C# linter. Declaring `dotnet-format` in `mise.toml` makes Flint format C# and report what still needs action. A repository that also wants analyzer linting enforced as a hard gate adds a `just` recipe outside Flint, because Flint has no C# lint check to activate. Prefer `dotnet format` over `csharpier` for the formatting Flint runs, since `dotnet-format` is Flint-managed while `csharpier` is absent from Flint's check list and would itself need a repository-owned `just` recipe.
+C# is the exception.
+Flint ships one C# check, `dotnet-format`, which runs `dotnet format` and is classified as the formatter.
+Flint exposes no separate C# linter.
+Declare `dotnet` in `mise.toml` so Flint formats C# and reports what still needs action.
+A repository that also wants analyzer linting enforced as a hard gate adds a `just` recipe outside Flint, because Flint has no C# lint check to activate.
+Prefer `dotnet format` over `csharpier` for the formatting Flint runs, since `dotnet-format` is Flint-managed while `csharpier` is absent from Flint's check list and would itself need a repository-owned `just` recipe.
 
 ## Add a check
 
