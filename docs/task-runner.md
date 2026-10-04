@@ -20,7 +20,7 @@ Keep the recipes thin. A recipe calls a portable executable such as `mise`, `npm
 
 Keep the recipe set small and conventional so a reader can guess a name. Arguments are positional, as in `just emit config.json out.json`.
 
-A repository that calls the shared coverage workflow defines the `coverage` recipe, which runs the suite with coverage and writes `coverage/lcov.info`. The standard check requires the recipe whenever the workflow is called. See [`coverage.md`](coverage.md).
+A repository that calls the shared coverage workflow defines the `coverage` recipe, which is self-contained: the shared workflow installs only the pinned tools, so the recipe installs the repository's own dependencies (`npm ci`, `pip install -e '.[test]'`, and so on), runs the suite with coverage, and writes `coverage/lcov.info`. The standard check requires the recipe whenever the workflow is called. The workflow checks the standard out into `.standard/`, so a test runner that globs the repository must exclude `.standard/`. See [`coverage.md`](coverage.md).
 
 ## Twin operations
 
