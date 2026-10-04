@@ -33,6 +33,11 @@ jobs:
     permissions:
       contents: read
     uses: simpsonm09-org/simpsonm09-repo-standard/.github/workflows/standard.yml@91cb73d9a028a8ee412e233275b2e9818a4c200e # repo-standard main
+  coverage:
+    if: github.repository_owner == 'simpsonm09-org'
+    permissions:
+      contents: read
+    uses: simpsonm09-org/simpsonm09-repo-standard/.github/workflows/coverage.yml@91cb73d9a028a8ee412e233275b2e9818a4c200e # repo-standard main
 
   # Required check. Every repository defines `just test`; replace the step below
   # with the repository test command when the generic task runner call is not enough.

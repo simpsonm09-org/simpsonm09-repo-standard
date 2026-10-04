@@ -31,3 +31,10 @@ jobs:
           else
             mise exec -- flint run
           fi
+      - name: Run repo-owned complexity checks
+        run: |
+          if just --list | grep -qE '^[[:space:]]+complexity([[:space:]]|$)'; then
+            just complexity
+          else
+            echo "no complexity recipe, skipping"
+          fi
