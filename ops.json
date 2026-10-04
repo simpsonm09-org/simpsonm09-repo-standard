@@ -77,6 +77,13 @@
       "description": "Resolve a repository's agent access level and capabilities."
     },
     {
+      "id": "check-agent-access",
+      "kind": "portable",
+      "args": true,
+      "run": "node scripts/check-agent-access.mjs",
+      "description": "Check the declared agent access level against the live protect-main ruleset."
+    },
+    {
       "id": "create-agent-app",
       "kind": "portable",
       "args": true,

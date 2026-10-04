@@ -51,6 +51,10 @@ check-repo *args:
 agent-access *args:
     {{op}} run agent-access {{args}}
 
+# Check the declared agent access level against the live protect-main ruleset.
+check-agent-access *args:
+    {{op}} run check-agent-access {{args}}
+
 # Create the fleet agent GitHub App from the manifest and capture its credentials.
 create-agent-app *args:
     {{op}} run create-agent-app {{args}}
