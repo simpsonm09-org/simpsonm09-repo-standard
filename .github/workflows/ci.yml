@@ -33,6 +33,11 @@ jobs:
     permissions:
       contents: read
     uses: ./.github/workflows/standard.yml # zizmor: ignore[self-repository] actionlint rejects the $/ form
+  coverage:
+    if: github.repository_owner == 'simpsonm09-org'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/coverage.yml # zizmor: ignore[self-repository] actionlint rejects the $/ form
 
   test:
     if: github.repository_owner == 'simpsonm09-org'

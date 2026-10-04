@@ -31,6 +31,10 @@ secret-scan:
 test:
     {{op}} run test
 
+# Run the suite with coverage and write coverage/lcov.info.
+coverage:
+    {{op}} run coverage
+
 # Run the agent-access enforcement tests over the fixture catalog and the pre-push hook.
 test-agent-access:
     {{op}} run test-agent-access

@@ -44,6 +44,12 @@
       "description": "Run every test suite."
     },
     {
+      "id": "coverage",
+      "kind": "portable",
+      "run": "npx --yes c8 --reporter=lcov --reports-dir=coverage node scripts/test.mjs",
+      "description": "Run the suite with coverage and write coverage/lcov.info."
+    },
+    {
       "id": "test-agent-access",
       "kind": "portable",
       "run": "node scripts/agent-access.test.mjs",
