@@ -22,13 +22,13 @@ Targets `refs/heads/main`.
 
 - Block creations, deletions, and force pushes. The pull request rule blocks direct updates, so `main` only changes through a pull request. Do not add a separate `update` rule. It also blocks the pull request merge the ruleset requires, and every merge then needs the administrator bypass.
 - Require a pull request before merging.
-- Required approvals set to zero. GitHub does not allow self-approval, so zero is the honest value for a solo maintainer.
+- Required approvals set to one. The agent identity cannot approve its own pull request, so a `propose` repository cannot be merged by the agent. The maintainer merges through the admin bypass, or approves the pull request first.
 - Extra approval for unattributed changes is off. GitHub enables `require_extra_approval_for_unattributed_changes` when the field is absent, and that would demand an approval a solo maintainer cannot give. The ruleset sets it to `false` explicitly.
 - Dismiss stale approvals and require conversation resolution.
 - Require signed commits on the branch.
 - Require the lint, aislop, security, standard, and test status checks, and require branches to be up to date.
 - No linear-history rule. Merge commits are allowed.
-- Bypass list is the organization admin role with mode `pull_request`. The only escape hatch is merging a pull request as an administrator. A bypass is recorded in the audit log.
+- Bypass list is the organization admin role with mode `pull_request`, plus the agent App on a `merge` or `full` repository. The admin is the maintainer's escape hatch. The App bypass lets the agent land its own green pull request without a direct push. Every bypass is recorded in the audit log.
 
 ### protect-tags
 

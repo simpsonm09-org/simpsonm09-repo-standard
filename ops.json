@@ -111,6 +111,13 @@
       "windows": "scripts/apply-rulesets.ps1",
       "posix": "scripts/apply-rulesets.sh",
       "description": "Apply the ruleset JSON to a repository."
+    },
+    {
+      "id": "ruleset-payload",
+      "kind": "portable",
+      "args": true,
+      "run": "node scripts/ruleset-payload.mjs",
+      "description": "Print a ruleset payload for a repository at its agent access level."
     }
   ]
 }

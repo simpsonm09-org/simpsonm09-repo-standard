@@ -70,3 +70,7 @@ apply-settings *args:
 # Apply the ruleset JSON to a repository.
 apply-rulesets *args:
     {{op}} run apply-rulesets {{args}}
+
+# Print a ruleset payload for a repository at its agent access level.
+ruleset-payload *args:
+    {{op}} run ruleset-payload {{args}}
