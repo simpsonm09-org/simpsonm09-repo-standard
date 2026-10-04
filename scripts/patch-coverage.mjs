@@ -68,10 +68,18 @@ function changedLines(base) {
   return result;
 }
 
+// The diff path uses forward slashes, but an emitter on Windows may write the
+// `SF:` name with backslashes, so normalize both sides before comparing.
+function toForwardSlashes(path) {
+  return path.replace(/\\/g, '/');
+}
+
 export function matchReport(files, rel) {
-  const suffix = '/' + rel;
+  const target = toForwardSlashes(rel);
+  const suffix = '/' + target;
   for (const [name, data] of files) {
-    if (name === rel || name.endsWith(suffix)) return data;
+    const normalized = toForwardSlashes(name);
+    if (normalized === target || normalized.endsWith(suffix)) return data;
   }
   return null;
 }
