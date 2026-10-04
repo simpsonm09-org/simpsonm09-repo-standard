@@ -40,6 +40,50 @@ node scripts/agent-access.mjs simpsonm09-repo-catalog --allows pushMain  # exits
 The `--allows` mode exits `0` when the level grants the capability and `1` when it
 does not, so a shell caller branches on the exit code.
 
+## The command classifier
+
+`--command` classifies one shell command to the capability it needs, so a gate can
+ask about a concrete action instead of translating it to a capability by hand.
+
+```bash
+node scripts/agent-access.mjs simpsonm09-repo-catalog --command "gh pr merge 1"        # exits 1, needs mergePr
+node scripts/agent-access.mjs simpsonm09-browser-calculator --command "gh pr merge 1" # exits 0
+node scripts/agent-access.mjs simpsonm09-repo-catalog --command "gh pr create"        # exits 0, needs openPr
+```
+
+[`classify(command)`](../../scripts/agent-access.mjs) is pure and returns the
+capability or `null`. The table is ordered, first match wins.
+
+| Command | Needs |
+| --- | --- |
+| `gh pr merge ...` | `mergePr` |
+| `gh pr create ...` | `openPr` |
+| `git push <remote> main` or `refs/heads/main` | `pushMain` |
+| `git push <remote> <other-ref>` | `pushBranch` |
+| `gh api` with `-X` or `--method` `POST`/`PUT`/`PATCH`/`DELETE` | `admin` |
+| any other command | none, allowed |
+
+`decide(level, command)` returns `{ capability, allowed }`. A command with no
+capability reaches nothing governed, so every level allows it. The command mode
+exits `0` when allowed and `1` when denied.
+
+## The drift check
+
+[`../../scripts/check-agent-access.mjs`](../../scripts/check-agent-access.mjs) reads
+the declared level per repository and the live `protect-main` ruleset, then reports
+the approval count and whether the App bypass matches. The App is present on the
+bypass exactly when the level grants a merge, so `merge` and `full` expect it and
+`none`, `read`, and `propose` do not.
+
+```bash
+node scripts/check-agent-access.mjs          # exits 1 on drift, 0 when clean
+just check-agent-access                      # same, through the operation runner
+```
+
+It exits `1` on any drift, including an unreadable ruleset, and `0` when clean. It
+is local only: it is not wired into CI, because it needs a token that can read the
+rulesets and it reports live state rather than a repository fact.
+
 The resolver reads the committed catalog from the clone, preferring the
 organization ref the agent cannot push to, so an uncommitted edit to the working
 tree cannot raise a level. A missing catalog or clone denies remote writes.
