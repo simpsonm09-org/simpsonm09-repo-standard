@@ -53,3 +53,5 @@ jobs:
         run: node scripts/create-agent-app.mjs --self-test
       - name: Check the agent token broker
         run: node scripts/agent-token.mjs --self-test
+      - name: Check the ruleset payload builder
+        run: node scripts/ruleset-payload.mjs --self-test

@@ -73,6 +73,19 @@ function checkApi(repo, add, notice) {
   const rulesets = ghJson(['api', '--paginate', `repos/${repo}/rulesets`, '--jq', '[.[] | select(.name=="protect-main")] | length']);
   if (!rulesets.ok) notice(`cannot read ${repo} rulesets: ${rulesets.error}`);
   else if (Number(rulesets.value) === 0) add('ruleset/protect-main', 'public repository has no protect-main ruleset');
+  else {
+    const id = ghJson(['api', `repos/${repo}/rulesets`, '--jq', '.[] | select(.name=="protect-main") | .id']);
+    if (!id.ok) notice(`cannot read the protect-main id: ${id.error}`);
+    else {
+      const detail = ghJson(['api', `repos/${repo}/rulesets/${id.value}`]);
+      if (!detail.ok) notice(`cannot read protect-main: ${detail.error}`);
+      else {
+        const rule = (detail.value.rules ?? []).find((entry) => entry.type === 'pull_request');
+        const count = rule?.parameters?.required_approving_review_count;
+        if (count !== 1) add('ruleset/approval', `protect-main requires ${count ?? 'no'} approving review, expected 1`);
+      }
+    }
+  }
 }
 
 function groupOf(id) {
