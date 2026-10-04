@@ -1,6 +1,6 @@
 # Detekt complexity limits. Flint manages ktlint for formatting, not Detekt.
 complexity:
-  ComplexMethod:
+  CyclomaticComplexMethod:
     active: true
     threshold: 10
   LongMethod:

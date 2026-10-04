@@ -64,11 +64,11 @@ The config file for each linter.
 | Language | Config file | Setting |
 | --- | --- | --- |
 | TypeScript, JavaScript | `biome.jsonc` | `linter.rules.complexity.noExcessiveCognitiveComplexity`, option `maxAllowedComplexity` |
-| Python | `pyproject.toml` | `[tool.ruff.lint]` C901, PLR0912, PLR0915, and PLR0913, and `[tool.ruff.lint.mccabe] max-complexity` |
+| Python | `.github/config/ruff.toml` | top-level `[lint]` C901, PLR0912, PLR0915, and PLR0913, and `[lint.mccabe] max-complexity` |
 | Go | `.github/config/.golangci.yml` | `gocyclo`, `gocognit`, `funlen`, `nestif` |
 | Rust | `Cargo.toml` | `[lints.clippy]` `cognitive_complexity` and `too_many_lines` |
 | C# and .NET | `.editorconfig` | severities for `CA1502`, `CA1505`, and `CA1506`, plus a repository-owned `just` recipe |
-| Kotlin | Detekt | `ComplexMethod`, `LongMethod`, `NestedBlockDepth` |
+| Kotlin | Detekt | `CyclomaticComplexMethod`, `LongMethod`, `NestedBlockDepth` |
 | Java | checkstyle | `CyclomaticComplexity`, `NPathComplexity`, `JavaNCSS`, `MethodLength` |
 
 Flint has no C# linter, so a C# repository enforces the analyzer rules with a `just` recipe it owns. Flint manages `ktlint` for Kotlin formatting only, so Detekt carries the Kotlin limits.

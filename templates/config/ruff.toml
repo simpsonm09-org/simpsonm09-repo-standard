@@ -1,4 +1,5 @@
-# Ruff complexity limits. Merge into the repository's pyproject.toml [tool.ruff] tables.
+# Ruff complexity limits. Flint reads this file at $FLINT_CONFIG_DIR/ruff.toml;
+# it is not a pyproject.toml [tool.ruff] table and rejects one.
 
 [lint]
 extend-select = ["C901", "PLR0912", "PLR0913", "PLR0915"]
