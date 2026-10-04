@@ -91,6 +91,21 @@ The installation is the per-repository grant. `none` and `read` get no installat
 `propose`, `merge`, and `full` get one. `merge` adds the app to the ruleset bypass
 list with mode `pull_request`, and `full` with mode `always`.
 
+## The token broker
+
+[`../../scripts/agent-token.mjs`](../../scripts/agent-token.mjs) mints an
+installation token from the app id and key. The token is short-lived and scoped to
+one installation, so it is the credential the agent uses at the boundary.
+
+```bash
+node scripts/agent-token.mjs simpsonm09-org/simpsonm09-repo-catalog
+node scripts/agent-token.mjs simpsonm09-org/simpsonm09-repo-catalog --json
+```
+
+The app id and key come from `AGENT_APP_ID` and `AGENT_APP_PRIVATE_KEY`, with a
+fallback to the user config directory for development. The token is printed to
+stdout. Never log it, and never write it to a file.
+
 ## What this does not do
 
 The resolver and the hook are a guardrail, not a boundary. The agent still runs on

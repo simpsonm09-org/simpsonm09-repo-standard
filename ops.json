@@ -84,6 +84,13 @@
       "description": "Create the fleet agent GitHub App from the manifest and capture its credentials."
     },
     {
+      "id": "agent-token",
+      "kind": "portable",
+      "args": true,
+      "run": "node scripts/agent-token.mjs",
+      "description": "Mint a short-lived installation token for a fleet repository."
+    },
+    {
       "id": "patch-coverage",
       "kind": "portable",
       "args": true,

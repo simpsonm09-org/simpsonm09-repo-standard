@@ -55,6 +55,10 @@ agent-access *args:
 create-agent-app *args:
     {{op}} run create-agent-app {{args}}
 
+# Mint a short-lived installation token for a fleet repository.
+agent-token *args:
+    {{op}} run agent-token {{args}}
+
 # Fail when the changed lines are not covered enough.
 patch-coverage *args:
     {{op}} run patch-coverage {{args}}
