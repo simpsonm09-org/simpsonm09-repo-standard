@@ -14,10 +14,9 @@
 import { createSign, generateKeyPairSync, verify } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CONFIG_DIR = join(homedir(), '.config', 'simpsonm09');
 const API = 'https://api.github.com';
 const JWT_LIFETIME_SECONDS = 540;
@@ -49,7 +48,7 @@ async function github(path, token, options = {}) {
       Accept: 'application/vnd.github+json',
       'X-GitHub-Api-Version': '2022-11-28',
       Authorization: `Bearer ${token}`,
-      ...(options.headers ?? {}),
+      ...options.headers,
     },
   });
   if (!response.ok) throw new Error(`${path}: ${response.status} ${await response.text()}`);
