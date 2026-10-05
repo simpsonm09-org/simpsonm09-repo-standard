@@ -1,0 +1,29 @@
+{
+  "formatter": { "indentStyle": "space", "indentWidth": 2 },
+  "files": { "includes": ["**", "!templates"] },
+  "linter": {
+    "rules": {
+      "complexity": {
+        "noExcessiveCognitiveComplexity": {
+          "level": "error",
+          "options": { "maxAllowedComplexity": 15 }
+        }
+      }
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["scripts/lib/proc.mjs"],
+      "linter": {
+        "rules": {
+          "complexity": {
+            "noExcessiveCognitiveComplexity": {
+              "level": "error",
+              "options": { "maxAllowedComplexity": 17 }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

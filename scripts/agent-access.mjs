@@ -71,7 +71,7 @@ export function resolveLevel(catalog, repoName) {
   if (entry.agentAccess) {
     return { repo: repoName, tier: entry.tier, level: entry.agentAccess, source: 'override' };
   }
-  const level = (catalog.agentAccessDefaults ?? {})[entry.tier] ?? FALLBACK_LEVEL;
+  const level = catalog.agentAccessDefaults?.[entry.tier] ?? FALLBACK_LEVEL;
   return { repo: repoName, tier: entry.tier, level, source: 'tier' };
 }
 
@@ -303,11 +303,19 @@ function parseArgs(argv) {
   const args = { repo: undefined, catalog: undefined, allows: undefined, command: undefined, remoteUrl: undefined, json: false };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
-    if (arg === '--catalog') args.catalog = argv[(index += 1)];
-    else if (arg === '--allows') args.allows = argv[(index += 1)];
-    else if (arg === '--command') args.command = argv[(index += 1)];
-    else if (arg === '--remote-url') args.remoteUrl = argv[(index += 1)];
-    else if (arg === '--json') args.json = true;
+    if (arg === '--catalog') {
+      index += 1;
+      args.catalog = argv[index];
+    } else if (arg === '--allows') {
+      index += 1;
+      args.allows = argv[index];
+    } else if (arg === '--command') {
+      index += 1;
+      args.command = argv[index];
+    } else if (arg === '--remote-url') {
+      index += 1;
+      args.remoteUrl = argv[index];
+    } else if (arg === '--json') args.json = true;
     else if (!args.repo) args.repo = arg;
   }
   return args;
@@ -316,32 +324,14 @@ function parseArgs(argv) {
 function main() {
   const argv = process.argv.slice(2);
   if (argv.includes('--self-test')) {
-    try {
-      selfTest();
-      process.stdout.write('agent-access: self-test ok\n');
-    } catch (error) {
-      process.stderr.write(`agent-access: self-test failed: ${error.message}\n`);
-      process.exit(1);
-    }
+    runSelfTest();
     return;
   }
 
   const args = parseArgs(argv);
-  if (!args.repo) {
-    process.stderr.write('usage: agent-access <repo-name> [--catalog <path>] [--json] [--allows <capability>] [--command "<shell command>"] [--remote-url <url>]\n');
-    process.exit(2);
-  }
+  if (!args.repo) return usageAndExit();
 
-  let catalog;
-  try {
-    catalog = args.catalog
-      ? loadCatalog(args.catalog)
-      : loadCommittedCatalog() ?? loadCatalog(DEFAULT_CATALOG);
-  } catch {
-    process.stderr.write('agent-access: cannot read the catalog, denying remote writes\n');
-    process.exit(2);
-  }
-
+  const catalog = loadCatalogFromArgs(args);
   const resolved = resolveLevel(catalog, args.repo);
   const capabilities = CAPABILITIES[resolved.level] ?? [];
 
@@ -353,6 +343,32 @@ function main() {
   if (args.allows) process.exit(capabilities.includes(args.allows) ? 0 : 1);
   if (args.json) process.stdout.write(`${JSON.stringify({ ...resolved, capabilities })}\n`);
   else process.stdout.write(`${resolved.level}\n`);
+}
+
+function runSelfTest() {
+  try {
+    selfTest();
+    process.stdout.write('agent-access: self-test ok\n');
+  } catch (error) {
+    process.stderr.write(`agent-access: self-test failed: ${error.message}\n`);
+    process.exit(1);
+  }
+}
+
+function usageAndExit() {
+  process.stderr.write('usage: agent-access <repo-name> [--catalog <path>] [--json] [--allows <capability>] [--command "<shell command>"] [--remote-url <url>]\n');
+  process.exit(2);
+}
+
+function loadCatalogFromArgs(args) {
+  try {
+    return args.catalog
+      ? loadCatalog(args.catalog)
+      : loadCommittedCatalog() ?? loadCatalog(DEFAULT_CATALOG);
+  } catch {
+    process.stderr.write('agent-access: cannot read the catalog, denying remote writes\n');
+    process.exit(2);
+  }
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

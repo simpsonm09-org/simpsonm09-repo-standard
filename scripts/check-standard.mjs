@@ -109,7 +109,7 @@ function parseJobs(text) {
       inJobs = false;
       continue;
     }
-    const match = /^  ([A-Za-z0-9_.-]+):\s*$/.exec(line);
+    const match = /^ {2}([A-Za-z0-9_.-]+):\s*$/.exec(line);
     if (match) {
       current = match[1];
       jobs.set(current, []);
@@ -155,7 +155,7 @@ function hasTestJob(root) {
     if (!/\.ya?ml$/.test(name)) continue;
     const jobs = parseJobs(normalize(readText(join(dir, name))));
     const block = jobs.get('test');
-    if (block && block.some((line) => /^\s+runs-on:/.test(line))) return true;
+    if (block?.some((line) => /^\s+runs-on:/.test(line))) return true;
   }
   return false;
 }
@@ -169,43 +169,53 @@ function checkCi(root, add) {
   const external = /^simpsonm09-org\/simpsonm09-repo-standard\/\.github\/workflows\/([a-z0-9-]+)\.yml@([0-9a-fA-F]{40})$/;
   const local = /^\.\/\.github\/workflows\/([a-z0-9-]+)\.yml$/;
 
-  for (const job of SHARED_JOBS) {
-    const block = jobs.get(job);
-    if (!block) {
-      add(`ci/${job}`, `ci.yml has no "${job}" job`);
-      continue;
-    }
-    const uses = findUses(block);
-    if (!uses) {
-      add(`ci/${job}`, `job "${job}" does not call a reusable workflow`);
-      continue;
-    }
-    const externalMatch = external.exec(uses);
-    const localMatch = local.exec(uses);
-    if (externalMatch) {
-      if (externalMatch[1] !== job) add(`ci/${job}`, `job "${job}" calls ${externalMatch[1]}.yml`);
-    } else if (localMatch && isSelf) {
-      if (localMatch[1] !== job) add(`ci/${job}`, `job "${job}" calls ${localMatch[1]}.yml`);
-    } else {
-      add(`ci/${job}`, `job "${job}" is not pinned to a 40-char repo-standard SHA (uses: ${uses})`);
-    }
+  for (const job of SHARED_JOBS) checkSharedJob(job, jobs, external, local, isSelf, add);
+
+  if (callsCoverage(jobs, external, local, isSelf) && !hasCoverageRecipe(root)) {
+    add('ci/coverage-recipe', 'ci.yml calls the shared coverage workflow but justfile has no "coverage" recipe');
   }
 
-  let callsCoverage = false;
+  checkPins(text, add);
+
+  if (!hasTestJob(root)) {
+    add('ci/test', 'no "test" job that runs on a runner in .github/workflows');
+  }
+}
+
+function checkSharedJob(job, jobs, external, local, isSelf, add) {
+  const block = jobs.get(job);
+  if (!block) {
+    add(`ci/${job}`, `ci.yml has no "${job}" job`);
+    return;
+  }
+  const uses = findUses(block);
+  if (!uses) {
+    add(`ci/${job}`, `job "${job}" does not call a reusable workflow`);
+    return;
+  }
+  const externalMatch = external.exec(uses);
+  const localMatch = local.exec(uses);
+  if (externalMatch) {
+    if (externalMatch[1] !== job) add(`ci/${job}`, `job "${job}" calls ${externalMatch[1]}.yml`);
+  } else if (localMatch && isSelf) {
+    if (localMatch[1] !== job) add(`ci/${job}`, `job "${job}" calls ${localMatch[1]}.yml`);
+  } else {
+    add(`ci/${job}`, `job "${job}" is not pinned to a 40-char repo-standard SHA (uses: ${uses})`);
+  }
+}
+
+function callsCoverage(jobs, external, local, isSelf) {
   for (const block of jobs.values()) {
     const uses = findUses(block);
     if (!uses) continue;
     const externalMatch = external.exec(uses);
     const localMatch = local.exec(uses);
-    if (externalMatch?.[1] === 'coverage' || (isSelf && localMatch?.[1] === 'coverage')) {
-      callsCoverage = true;
-      break;
-    }
+    if (externalMatch?.[1] === 'coverage' || (isSelf && localMatch?.[1] === 'coverage')) return true;
   }
-  if (callsCoverage && !hasCoverageRecipe(root)) {
-    add('ci/coverage-recipe', 'ci.yml calls the shared coverage workflow but justfile has no "coverage" recipe');
-  }
+  return false;
+}
 
+function checkPins(text, add) {
   for (const match of text.matchAll(/^\s*uses:\s*(\S+)/gm)) {
     const ref = match[1];
     if (!ref.includes(`${STANDARD_REPO}/`)) continue;
@@ -213,10 +223,6 @@ function checkCi(root, add) {
     if (at === -1 || !SHA_PATTERN.test(ref.slice(at + 1))) {
       add('ci/pin', `unpinned repo-standard reference ${ref}`);
     }
-  }
-
-  if (!hasTestJob(root)) {
-    add('ci/test', 'no "test" job that runs on a runner in .github/workflows');
   }
 }
 
@@ -327,7 +333,7 @@ function justfileText(root) {
   for (const match of text.matchAll(/^\s*import\s+['"]([^'"]+)['"]/gm)) {
     const imported = join(root, match[1]);
     if (!existsSync(imported)) continue;
-    combined += '\n' + normalize(readText(imported)).replace(/\r\n/g, '\n');
+    combined += `\n${normalize(readText(imported)).replace(/\r\n/g, '\n')}`;
   }
   return combined;
 }
@@ -345,36 +351,13 @@ function checkDocs(root, add) {
   const markdown = listFiles(docsDir, ['.md']);
   const hasDocs = markdown.length > 0;
 
-  const readmePath = join(root, 'README.md');
-  let readme = '';
-  if (!existsSync(readmePath)) {
-    add('docs/readme', 'README.md is missing');
-  } else {
-    readme = normalize(readText(readmePath));
-    const headings = stripFences(readme).split('\n').filter((line) => /^#\s+\S/.test(line));
-    if (headings.length !== 1) {
-      add('docs/readme', `README.md has ${headings.length} level-1 headings, expected 1`);
-    }
-  }
-
+  const readme = checkReadme(root, add);
   if (hasDocs && !/docs\/README\.md/.test(readme)) {
     add('docs/readme-link', 'README.md does not link docs/README.md');
   }
 
   const index = join(docsDir, 'README.md');
-  if (hasDocs) {
-    if (!existsSync(index)) {
-      add('docs/index', 'docs/README.md index is missing');
-    } else {
-      const reached = reachableDocs(index, markdown);
-      for (const doc of markdown) {
-        if (samePath(doc, index)) continue;
-        if (!reached.has(resolve(doc))) {
-          add('docs/index', `${toPosix(relative(root, doc))} is not reachable from docs/README.md`);
-        }
-      }
-    }
-  }
+  if (hasDocs) checkDocsIndex(root, index, markdown, add);
 
   const manifestPath = join(docsDir, 'manifest.json');
   if (!existsSync(manifestPath)) {
@@ -392,6 +375,42 @@ function checkDocs(root, add) {
     add('docs/manifest', 'docs/manifest.json must be a JSON object');
     return;
   }
+
+  validateManifest(manifest, add);
+  checkFeatureDocs(root, index, manifest, add);
+  checkDiagramDocs(root, manifest, add);
+  checkApiSpec(root, manifest, add);
+}
+
+function checkReadme(root, add) {
+  const readmePath = join(root, 'README.md');
+  if (!existsSync(readmePath)) {
+    add('docs/readme', 'README.md is missing');
+    return '';
+  }
+  const readme = normalize(readText(readmePath));
+  const headings = stripFences(readme).split('\n').filter((line) => /^#\s+\S/.test(line));
+  if (headings.length !== 1) {
+    add('docs/readme', `README.md has ${headings.length} level-1 headings, expected 1`);
+  }
+  return readme;
+}
+
+function checkDocsIndex(root, index, markdown, add) {
+  if (!existsSync(index)) {
+    add('docs/index', 'docs/README.md index is missing');
+    return;
+  }
+  const reached = reachableDocs(index, markdown);
+  for (const doc of markdown) {
+    if (samePath(doc, index)) continue;
+    if (!reached.has(resolve(doc))) {
+      add('docs/index', `${toPosix(relative(root, doc))} is not reachable from docs/README.md`);
+    }
+  }
+}
+
+function validateManifest(manifest, add) {
   for (const key of Object.keys(manifest)) {
     if (!MANIFEST_KEYS.has(key)) add('docs/manifest', `docs/manifest.json has unknown key "${key}"`);
   }
@@ -399,16 +418,25 @@ function checkDocs(root, add) {
     add('docs/manifest', 'readme must be a boolean');
   }
   for (const key of ['features', 'diagrams']) {
-    if (key in manifest && (!Array.isArray(manifest[key]) || manifest[key].some((value) => typeof value !== 'string'))) {
+    if (key in manifest && !isStringArray(manifest[key])) {
       add('docs/manifest', `${key} must be an array of strings`);
     }
   }
-  if (manifest.api !== undefined && manifest.api !== null) {
-    const api = manifest.api;
-    const valid = typeof api === 'string' || (typeof api === 'object' && typeof api.spec === 'string');
-    if (!valid) add('docs/manifest', 'api must be a spec path or an object with a string spec');
+  if (isInvalidApi(manifest.api)) {
+    add('docs/manifest', 'api must be a spec path or an object with a string spec');
   }
+}
 
+function isStringArray(value) {
+  return Array.isArray(value) && value.every((item) => typeof item === 'string');
+}
+
+function isInvalidApi(api) {
+  if (api === undefined || api === null) return false;
+  return !(typeof api === 'string' || (typeof api === 'object' && typeof api.spec === 'string'));
+}
+
+function checkFeatureDocs(root, index, manifest, add) {
   const indexTargets = existsSync(index) ? fileLinks(index) : [];
   for (const rel of stringArray(manifest.features)) {
     const full = resolve(root, rel);
@@ -417,8 +445,10 @@ function checkDocs(root, add) {
       add('docs/feature', `declared feature doc ${rel} is not linked from docs/README.md`);
     }
   }
+}
 
-  const fence = new RegExp('```\\s*(' + DIAGRAM_FENCES.join('|') + ')\\b');
+function checkDiagramDocs(root, manifest, add) {
+  const fence = new RegExp(`\`\`\`\\s*(${DIAGRAM_FENCES.join('|')})\\b`);
   for (const rel of stringArray(manifest.diagrams)) {
     const full = resolve(root, rel);
     if (!existsSync(full)) {
@@ -429,36 +459,39 @@ function checkDocs(root, add) {
       add('docs/diagram', `declared diagram doc ${rel} has no supported diagram fence`);
     }
   }
+}
 
-  if (typeof manifest.api === 'string' || (manifest.api && typeof manifest.api.spec === 'string')) {
-    const spec = typeof manifest.api === 'string' ? manifest.api : manifest.api.spec;
-    const full = resolve(root, spec);
-    if (!existsSync(full)) {
-      add('docs/api', `declared API spec ${spec} is missing`);
-    } else {
-      const text = normalize(readText(full));
-      let ok = false;
-      if (/\.json$/i.test(spec)) {
-        try {
-          const data = JSON.parse(text);
-          ok = Boolean(data.openapi || data.asyncapi);
-        } catch {
-          ok = false;
-        }
-      } else {
-        ok = /^\s*(openapi|asyncapi):\s*\S/m.test(text);
-      }
-      if (!ok) add('docs/api', `declared API spec ${spec} has no openapi/asyncapi version`);
-    }
+function checkApiSpec(root, manifest, add) {
+  if (typeof manifest.api !== 'string' && !(manifest.api && typeof manifest.api.spec === 'string')) return;
+  const spec = typeof manifest.api === 'string' ? manifest.api : manifest.api.spec;
+  const full = resolve(root, spec);
+  if (!existsSync(full)) {
+    add('docs/api', `declared API spec ${spec} is missing`);
+    return;
+  }
+  if (!hasOpenapiVersion(spec, normalize(readText(full)))) {
+    add('docs/api', `declared API spec ${spec} has no openapi/asyncapi version`);
+  }
 
-    const rel = toPosix(relative(root, full));
-    if (!marksGenerated(root, rel)) {
-      add('docs/api-generated', `${spec} is not marked linguist-generated in .gitattributes`);
-    }
-    if (!hasSpecRecipe(root)) {
-      add('docs/api-generated', 'justfile has no "spec" recipe to regenerate the API document');
+  const rel = toPosix(relative(root, full));
+  if (!marksGenerated(root, rel)) {
+    add('docs/api-generated', `${spec} is not marked linguist-generated in .gitattributes`);
+  }
+  if (!hasSpecRecipe(root)) {
+    add('docs/api-generated', 'justfile has no "spec" recipe to regenerate the API document');
+  }
+}
+
+function hasOpenapiVersion(spec, text) {
+  if (/\.json$/i.test(spec)) {
+    try {
+      const data = JSON.parse(text);
+      return Boolean(data.openapi || data.asyncapi);
+    } catch {
+      return false;
     }
   }
+  return /^\s*(openapi|asyncapi):\s*\S/m.test(text);
 }
 
 export function checkStandard(root) {

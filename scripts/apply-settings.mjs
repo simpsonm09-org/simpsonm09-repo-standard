@@ -88,22 +88,24 @@ function convergeDependabot(repo, apply, changes) {
     return `cannot read Dependabot alerts for ${repo}: ${alerts.error}`;
   }
   if (!alerts.ok) {
-    changes.push(`${repo} dependabot alerts -> enabled`);
-    if (apply) {
-      const result = gh(['-X', 'PUT', `repos/${repo}/vulnerability-alerts`]);
-      if (!result.ok) return `cannot enable Dependabot alerts for ${repo}: ${result.error}`;
-    }
+    const error = enableToggle(repo, 'vulnerability-alerts', 'Dependabot alerts', apply, changes);
+    if (error) return error;
   }
 
   const fixes = gh([`repos/${repo}/automated-security-fixes`]);
   if (!fixes.ok) return `cannot read Dependabot security updates for ${repo}: ${fixes.error}`;
   if (fixes.value?.enabled !== true) {
-    changes.push(`${repo} dependabot security updates -> enabled`);
-    if (apply) {
-      const result = gh(['-X', 'PUT', `repos/${repo}/automated-security-fixes`]);
-      if (!result.ok) return `cannot enable Dependabot security updates for ${repo}: ${result.error}`;
-    }
+    const error = enableToggle(repo, 'automated-security-fixes', 'Dependabot security updates', apply, changes);
+    if (error) return error;
   }
+  return null;
+}
+
+function enableToggle(repo, endpoint, label, apply, changes) {
+  changes.push(`${repo} ${label.toLowerCase()} -> enabled`);
+  if (!apply) return null;
+  const result = gh(['-X', 'PUT', `repos/${repo}/${endpoint}`]);
+  if (!result.ok) return `cannot enable ${label} for ${repo}: ${result.error}`;
   return null;
 }
 
@@ -140,20 +142,32 @@ export function applySettings(repo, options, apply) {
 }
 
 function main() {
-  let options;
-  try {
-    options = parseArgs(process.argv.slice(2));
-  } catch (error) {
-    process.stderr.write(`apply-settings: ${error.message}\n${USAGE}`);
-    process.exit(EXIT.USAGE);
-  }
+  const options = parseOptionsOrExit();
   if (options.help || !options.repo || !options.repo.includes('/')) {
-    if (!options.help && options.repo) process.stderr.write('apply-settings: repo must be owner/name\n');
-    process.stdout.write(USAGE);
+    reportUsage(options);
     process.exit(options.help ? EXIT.OK : EXIT.USAGE);
   }
 
   const { changes, errors } = applySettings(options.repo, options, options.apply);
+  reportResult(options, changes, errors);
+  process.exit(errors.length > 0 ? EXIT.FAIL : EXIT.OK);
+}
+
+function parseOptionsOrExit() {
+  try {
+    return parseArgs(process.argv.slice(2));
+  } catch (error) {
+    process.stderr.write(`apply-settings: ${error.message}\n${USAGE}`);
+    process.exit(EXIT.USAGE);
+  }
+}
+
+function reportUsage(options) {
+  if (!options.help && options.repo) process.stderr.write('apply-settings: repo must be owner/name\n');
+  process.stdout.write(USAGE);
+}
+
+function reportResult(options, changes, errors) {
   process.stdout.write(`apply-settings  ${options.repo} (${options.apply ? 'apply' : 'dry run'})\n`);
   if (changes.length === 0) {
     process.stdout.write('  ok, already converged\n');
@@ -162,7 +176,6 @@ function main() {
     if (!options.apply) process.stdout.write('  run with --apply to write these changes\n');
   }
   for (const error of errors) process.stderr.write(`error: ${error}\n`);
-  process.exit(errors.length > 0 ? EXIT.FAIL : EXIT.OK);
 }
 
 if (isMain(import.meta.url)) main();

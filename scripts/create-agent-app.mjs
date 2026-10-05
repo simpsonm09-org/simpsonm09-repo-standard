@@ -32,7 +32,7 @@ export function validateManifest(manifest) {
   for (const [scope, level] of Object.entries(manifest.default_permissions ?? {})) {
     if (!['read', 'write'].includes(level)) problems.push(`permission ${scope} must be read or write`);
   }
-  if ((manifest.default_permissions ?? {}).administration) {
+  if (manifest.default_permissions?.administration) {
     problems.push('administration must not be granted');
   }
   return problems;
@@ -42,9 +42,13 @@ function parseArgs(argv) {
   const args = { org: 'simpsonm09-org', port: 8721, print: false, selfTest: false, noOpen: false };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
-    if (arg === '--org') args.org = argv[(index += 1)];
-    else if (arg === '--port') args.port = Number(argv[(index += 1)]);
-    else if (arg === '--print') args.print = true;
+    if (arg === '--org') {
+      index += 1;
+      args.org = argv[index];
+    } else if (arg === '--port') {
+      index += 1;
+      args.port = Number(argv[index]);
+    } else if (arg === '--print') args.print = true;
     else if (arg === '--no-open') args.noOpen = true;
     else if (arg === '--self-test') args.selfTest = true;
   }

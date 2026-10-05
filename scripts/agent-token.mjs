@@ -86,8 +86,10 @@ function parseArgs(argv) {
   const args = { repo: undefined, installation: undefined, json: false, selfTest: false };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
-    if (arg === '--installation') args.installation = argv[(index += 1)];
-    else if (arg === '--json') args.json = true;
+    if (arg === '--installation') {
+      index += 1;
+      args.installation = argv[index];
+    } else if (arg === '--json') args.json = true;
     else if (arg === '--self-test') args.selfTest = true;
     else if (!args.repo) args.repo = arg;
   }
@@ -109,7 +111,7 @@ async function main() {
   }
 
   const target = args.repo;
-  if (!target || !target.includes('/')) {
+  if (!target?.includes('/')) {
     process.stderr.write('usage: agent-token <owner>/<repo> [--json]\n');
     process.exit(2);
   }
