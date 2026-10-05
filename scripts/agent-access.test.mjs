@@ -22,6 +22,7 @@ const ROOT = resolve(HERE, '..');
 const RESOLVER = join(HERE, 'agent-access.mjs');
 const FIXTURE_CATALOG = join(HERE, 'fixtures', 'agent-access', 'repos.json');
 const HOOK_TEMPLATE = join(ROOT, 'templates', 'hooks', 'pre-push');
+const EXIT = Object.freeze({ OK: 0, FAIL: 1, USAGE: 2 });
 
 // Each fixture repository and the exact level its catalog entry declares. The
 // catalog is a fixture, so the live roster is never read.
@@ -172,6 +173,60 @@ function testHook(assert) {
   }
 }
 
+// Run the resolver as an executable and return its status, stdout, and stderr.
+// The process.exit edges in main() cannot be imported, so every CLI path is
+// driven through a real subprocess.
+function runResolver(extra) {
+  const result = spawnSync(process.execPath, [RESOLVER, ...extra], { encoding: 'utf8' });
+  return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
+}
+
+// The CLI entry points main() shares with the flag-based consumers: argument
+// parsing for every flag, the missing-repo usage exit, a JSON level report, the
+// command mode with a JSON body and its allow/deny exit, the allows mode, and
+// the self-test path. Every case resolves against the fixture catalog so the
+// live roster is never read.
+function testCli(assert) {
+  const noRepo = runResolver([]);
+  assert(noRepo.status === EXIT.USAGE, `no repository argument exits ${EXIT.USAGE}, got ${noRepo.status}`);
+  assert(noRepo.stderr.includes('usage: agent-access'), 'the missing-repo path prints usage to stderr');
+
+  const level = runResolver(['simpsonm09-fixture-rust', '--catalog', FIXTURE_CATALOG]);
+  assert(level.status === EXIT.OK, `the level mode exits ${EXIT.OK}, got ${level.status}`);
+  assert(level.stdout.trim() === 'merge', `the level mode prints the level, got ${JSON.stringify(level.stdout.trim())}`);
+
+  const asJson = runResolver(['simpsonm09-fixture-rust', '--catalog', FIXTURE_CATALOG, '--json']);
+  assert(asJson.status === EXIT.OK, `the JSON level mode exits ${EXIT.OK}, got ${asJson.status}`);
+  const parsed = JSON.parse(asJson.stdout);
+  assert(parsed.level === 'merge' && Array.isArray(parsed.capabilities), 'the JSON level mode carries the level and capabilities');
+
+  const allowed = runResolver(['simpsonm09-fixture-go', '--catalog', FIXTURE_CATALOG, '--allows', 'pushMain']);
+  assert(allowed.status === EXIT.OK, `an allowed capability exits ${EXIT.OK}, got ${allowed.status}`);
+  const denied = runResolver(['simpsonm09-fixture-rust', '--catalog', FIXTURE_CATALOG, '--allows', 'pushMain']);
+  assert(denied.status === EXIT.FAIL, `a denied capability exits ${EXIT.FAIL}, got ${denied.status}`);
+
+  const permitted = runResolver([
+    'simpsonm09-fixture-go', '--catalog', FIXTURE_CATALOG,
+    '--command', 'git push origin feat/x', '--remote-url', 'https://github.com/simpsonm09-org/simpsonm09-fixture-go.git', '--json',
+  ]);
+  assert(permitted.status === EXIT.OK, `an allowed command exits ${EXIT.OK}, got ${permitted.status}`);
+  const decision = JSON.parse(permitted.stdout);
+  assert(decision.allowed === true && decision.capability === 'pushBranch', 'the command JSON carries the capability and verdict');
+  const governed = runResolver([
+    'simpsonm09-fixture-rust', '--catalog', FIXTURE_CATALOG,
+    '--command', 'git push origin main', '--remote-url', 'https://github.com/simpsonm09-org/simpsonm09-fixture-rust.git',
+  ]);
+  assert(governed.status === EXIT.FAIL, `a denied command exits ${EXIT.FAIL}, got ${governed.status}`);
+
+  const badCatalog = runResolver(['simpsonm09-fixture-go', '--catalog', join(HERE, 'no-such-catalog.json')]);
+  assert(badCatalog.status === EXIT.USAGE, `an unreadable catalog exits ${EXIT.USAGE}, got ${badCatalog.status}`);
+  assert(badCatalog.stderr.includes('cannot read the catalog'), 'an unreadable catalog prints the fail-closed message');
+
+  const selfTest = runResolver(['--self-test']);
+  assert(selfTest.status === EXIT.OK, `the self-test exits ${EXIT.OK}, got ${selfTest.status}`);
+  assert(selfTest.stdout.includes('self-test ok'), 'the self-test prints its success line');
+}
+
 // Run the suite and return an exit code, so the runner (verify.mjs) and the CLI
 // share one path. It never calls process.exit, so an import cannot end the caller.
 export function runTest() {
@@ -179,6 +234,7 @@ export function runTest() {
   try {
     testDecisionLayer(assert);
     testHook(assert);
+    testCli(assert);
     process.stdout.write(`agent-access.test: ok (${total()} assertions)\n`);
     return 0;
   } catch (error) {

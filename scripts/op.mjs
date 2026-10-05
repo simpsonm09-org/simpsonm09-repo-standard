@@ -133,6 +133,12 @@ function usage(message) {
   return EXIT.USAGE;
 }
 
+function exitUsage(message) {
+  process.stderr.write(`op: ${message}\n`);
+  process.stderr.write(USAGE);
+  process.exit(EXIT.USAGE);
+}
+
 function fail(errors) {
   for (const error of errors) process.stderr.write(`error: ${error}\n`);
   return process.exit(EXIT.FAIL);
