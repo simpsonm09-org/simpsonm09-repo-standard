@@ -49,9 +49,9 @@ jobs:
           BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
           if [ "${GITHUB_REPOSITORY}" = "simpsonm09-org/simpsonm09-repo-standard" ]; then
-            node scripts/patch-coverage.mjs --lcov coverage/lcov.info --base "$BASE" --mode lines
+            node scripts/patch-coverage.mjs --lcov coverage/lcov.info --base "$BASE" --mode both --allow-missing-branch
           else
-            node .standard/scripts/patch-coverage.mjs --lcov coverage/lcov.info --base "$BASE" --mode lines
+            node .standard/scripts/patch-coverage.mjs --lcov coverage/lcov.info --base "$BASE" --mode both --allow-missing-branch
           fi
       - name: Upload the coverage report
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
