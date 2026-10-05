@@ -105,10 +105,16 @@ function parseArgs(argv) {
   const args = { catalog: undefined, org: DEFAULT_ORG, appId: DEFAULT_APP_ID, json: false, selfTest: false };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
-    if (arg === '--catalog') args.catalog = argv[(index += 1)];
-    else if (arg === '--org') args.org = argv[(index += 1)];
-    else if (arg === '--app-id') args.appId = Number(argv[(index += 1)]);
-    else if (arg === '--json') args.json = true;
+    if (arg === '--catalog') {
+      index += 1;
+      args.catalog = argv[index];
+    } else if (arg === '--org') {
+      index += 1;
+      args.org = argv[index];
+    } else if (arg === '--app-id') {
+      index += 1;
+      args.appId = Number(argv[index]);
+    } else if (arg === '--json') args.json = true;
     else if (arg === '--self-test') args.selfTest = true;
   }
   return args;
@@ -163,50 +169,69 @@ function selfTest() {
 function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.selfTest) {
-    try {
-      selfTest();
-      process.stdout.write('check-agent-access: self-test ok\n');
-    } catch (error) {
-      process.stderr.write(`check-agent-access: self-test failed: ${error.message}\n`);
-      process.exit(1);
-    }
+    runSelfTest();
     return;
   }
 
-  let catalog;
+  const catalog = loadCatalogOrExit(args);
+  const { rows, drift } = collectRows(catalog, args);
+  report(args, rows, drift);
+  process.exit(drift ? 1 : 0);
+}
+
+function runSelfTest() {
   try {
-    catalog = args.catalog
+    selfTest();
+    process.stdout.write('check-agent-access: self-test ok\n');
+  } catch (error) {
+    process.stderr.write(`check-agent-access: self-test failed: ${error.message}\n`);
+    process.exit(1);
+  }
+}
+
+function loadCatalogOrExit(args) {
+  try {
+    return args.catalog
       ? loadCatalog(args.catalog)
       : loadCommittedCatalog() ?? loadCatalog(DEFAULT_CATALOG);
   } catch {
     process.stderr.write('check-agent-access: cannot read the catalog\n');
     process.exit(2);
   }
+}
 
+function collectRows(catalog, args) {
   const rows = [];
   let drift = false;
   for (const entry of catalog.repos ?? []) {
-    const resolved = resolveLevel(catalog, entry.name);
-    let ruleset = null;
-    try {
-      ruleset = protectMain(args.org, entry.name, DEFAULT_BRANCH);
-    } catch (error) {
-      if (!args.json) process.stderr.write(`check-agent-access: cannot read ${entry.name} ruleset: ${error.message}\n`);
-    }
-    const row = compare(entry.name, resolved.level, ruleset, args.appId);
+    const row = compareEntry(entry, catalog, args);
     rows.push(row);
     if (!row.ok) drift = true;
   }
+  return { rows, drift };
+}
 
-  if (args.json) process.stdout.write(`${JSON.stringify({ org: args.org, appId: args.appId, rows }, null, 2)}\n`);
-  else {
-    for (const row of rows) {
-      const status = row.ok ? 'ok' : `DRIFT: ${row.reason}`;
-      process.stdout.write(`${row.repo}\tlevel=${row.level}\tapprovals=${row.approvals ?? '?'}\tappBypass=${row.hasBypass ?? '?'}\t${status}\n`);
-    }
-    process.stdout.write(`check-agent-access: ${drift ? 'drift' : 'clean'} (${rows.length} repositories)\n`);
+function compareEntry(entry, catalog, args) {
+  const resolved = resolveLevel(catalog, entry.name);
+  let ruleset = null;
+  try {
+    ruleset = protectMain(args.org, entry.name, DEFAULT_BRANCH);
+  } catch (error) {
+    if (!args.json) process.stderr.write(`check-agent-access: cannot read ${entry.name} ruleset: ${error.message}\n`);
   }
-  process.exit(drift ? 1 : 0);
+  return compare(entry.name, resolved.level, ruleset, args.appId);
+}
+
+function report(args, rows, drift) {
+  if (args.json) {
+    process.stdout.write(`${JSON.stringify({ org: args.org, appId: args.appId, rows }, null, 2)}\n`);
+    return;
+  }
+  for (const row of rows) {
+    const status = row.ok ? 'ok' : `DRIFT: ${row.reason}`;
+    process.stdout.write(`${row.repo}\tlevel=${row.level}\tapprovals=${row.approvals ?? '?'}\tappBypass=${row.hasBypass ?? '?'}\t${status}\n`);
+  }
+  process.stdout.write(`check-agent-access: ${drift ? 'drift' : 'clean'} (${rows.length} repositories)\n`);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

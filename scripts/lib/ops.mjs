@@ -19,23 +19,28 @@ export function validateShape(ops) {
   if (!operations) {
     return { errors: [`${OPS_FILE} needs an operations array`], operations: [] };
   }
-  for (const op of operations) {
-    if (!ID_PATTERN.test(op.id ?? '')) errors.push(`operation id "${op.id}" is not kebab-case`);
-    if (ids.has(op.id)) errors.push(`duplicate operation id "${op.id}"`);
-    ids.add(op.id);
-    const kind = op.kind ?? 'portable';
-    if (kind !== 'portable' && kind !== 'twin') {
-      errors.push(`operation "${op.id}" has unknown kind "${op.kind}"`);
-    }
-    if (kind === 'portable' && typeof op.run !== 'string') {
-      errors.push(`portable operation "${op.id}" needs a run string`);
-    }
-    if (kind === 'twin') {
-      if (!op.windows) errors.push(`twin operation "${op.id}" needs a windows implementation`);
-      if (!op.posix) errors.push(`twin operation "${op.id}" needs a posix implementation`);
-    }
-  }
+  for (const op of operations) validateOperation(op, ids, errors);
   return { errors, operations };
+}
+
+function validateOperation(op, ids, errors) {
+  if (!ID_PATTERN.test(op.id ?? '')) errors.push(`operation id "${op.id}" is not kebab-case`);
+  if (ids.has(op.id)) errors.push(`duplicate operation id "${op.id}"`);
+  ids.add(op.id);
+  const kind = op.kind ?? 'portable';
+  if (kind !== 'portable' && kind !== 'twin') {
+    errors.push(`operation "${op.id}" has unknown kind "${op.kind}"`);
+    return;
+  }
+  if (kind === 'portable' && typeof op.run !== 'string') {
+    errors.push(`portable operation "${op.id}" needs a run string`);
+  }
+  if (kind === 'twin') validateTwin(op, errors);
+}
+
+function validateTwin(op, errors) {
+  if (!op.windows) errors.push(`twin operation "${op.id}" needs a windows implementation`);
+  if (!op.posix) errors.push(`twin operation "${op.id}" needs a posix implementation`);
 }
 
 export function render(ops, options = {}) {

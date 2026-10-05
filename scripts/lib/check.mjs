@@ -53,20 +53,27 @@ function extensionOf(name) {
 function collectReferences(ops) {
   const referenced = new Set();
   for (const op of ops.operations ?? []) {
-    if ((op.kind ?? 'portable') === 'twin') {
-      for (const rel of [op.windows, op.posix]) {
-        if (rel) referenced.add(toPosix(rel));
-      }
-    }
-    if (typeof op.run === 'string') {
-      for (const token of op.run.split(/\s+/)) {
-        if (/\.(mjs|js|cjs|sh|ps1|py|ts)$/i.test(token) || token.includes('/') || token.includes('\\')) {
-          referenced.add(toPosix(token.replace(/^\.\//, '')));
-        }
-      }
-    }
+    if ((op.kind ?? 'portable') === 'twin') addTwinReferences(op, referenced);
+    collectRunReferences(op, referenced);
   }
   return referenced;
+}
+
+function addTwinReferences(op, referenced) {
+  for (const rel of [op.windows, op.posix]) {
+    if (rel) referenced.add(toPosix(rel));
+  }
+}
+
+function collectRunReferences(op, referenced) {
+  if (typeof op.run !== 'string') return;
+  for (const token of op.run.split(/\s+/)) {
+    if (isScriptPath(token)) referenced.add(toPosix(token.replace(/^\.\//, '')));
+  }
+}
+
+function isScriptPath(token) {
+  return /\.(mjs|js|cjs|sh|ps1|py|ts)$/i.test(token) || token.includes('/') || token.includes('\\');
 }
 
 function collectReachability(root, ops, errors) {
@@ -106,43 +113,55 @@ function checkTwins(root, ops, errors, notices) {
   for (const op of ops.operations ?? []) {
     if ((op.kind ?? 'portable') !== 'twin') continue;
     const sides = [['windows', op.windows], ['posix', op.posix]].filter(([, rel]) => rel);
-    for (const [side, rel] of sides) {
-      if (!existsSync(join(root, rel))) {
-        errors.push(`twin "${op.id}" ${side} implementation ${rel} is missing`);
-      }
-      const ext = extensionOf(rel);
-      if (!KNOWN_INTERPRETERS[ext]) {
-        errors.push(`twin "${op.id}" ${side} implementation ${rel} has no known interpreter`);
-      }
-    }
+    for (const [side, rel] of sides) checkTwinSide(root, op, side, rel, errors);
     if (sides.length < 2) continue;
     const results = {};
     for (const [side, rel] of sides) {
-      const ext = extensionOf(rel);
-      if (!KNOWN_INTERPRETERS[ext]) continue;
-      const interpreter = KNOWN_INTERPRETERS[ext];
-      if (!which(interpreter)) {
-        notices.push(`twin "${op.id}" ${side} parity skipped: ${interpreter} is not on PATH`);
-        continue;
-      }
-      const help = capture(interpreter, interpreterFor(root, rel, ['help']).argv, { cwd: root }).status;
-      const usage = capture(interpreter, interpreterFor(root, rel, []).argv, { cwd: root }).status;
-      results[side] = { help, usage };
+      const probe = probeTwinSide(root, op, side, rel, notices);
+      if (probe) results[side] = probe;
     }
-    const windows = results.windows;
-    const posix = results.posix;
-    if (windows && posix) {
-      if (windows.help !== posix.help) {
-        errors.push(`twin "${op.id}" help exit ${windows.help} (windows) != ${posix.help} (posix)`);
-      }
-      if (windows.usage !== posix.usage) {
-        errors.push(`twin "${op.id}" usage exit ${windows.usage} (windows) != ${posix.usage} (posix)`);
-      }
-    }
-    for (const [side, result] of Object.entries(results)) {
-      if (result.help !== 0) errors.push(`twin "${op.id}" ${side} must exit 0 for "help", got ${result.help}`);
-      if (result.usage !== 2) errors.push(`twin "${op.id}" ${side} must exit 2 with no arguments, got ${result.usage}`);
-    }
+    compareTwinResults(op, results, errors);
+    assertTwinResults(op, results, errors);
+  }
+}
+
+function checkTwinSide(root, op, side, rel, errors) {
+  if (!existsSync(join(root, rel))) {
+    errors.push(`twin "${op.id}" ${side} implementation ${rel} is missing`);
+  }
+  if (!KNOWN_INTERPRETERS[extensionOf(rel)]) {
+    errors.push(`twin "${op.id}" ${side} implementation ${rel} has no known interpreter`);
+  }
+}
+
+function probeTwinSide(root, op, side, rel, notices) {
+  const interpreter = KNOWN_INTERPRETERS[extensionOf(rel)];
+  if (!interpreter) return null;
+  if (!which(interpreter)) {
+    notices.push(`twin "${op.id}" ${side} parity skipped: ${interpreter} is not on PATH`);
+    return null;
+  }
+  const help = capture(interpreter, interpreterFor(root, rel, ['help']).argv, { cwd: root }).status;
+  const usage = capture(interpreter, interpreterFor(root, rel, []).argv, { cwd: root }).status;
+  return { help, usage };
+}
+
+function compareTwinResults(op, results, errors) {
+  const windows = results.windows;
+  const posix = results.posix;
+  if (!windows || !posix) return;
+  if (windows.help !== posix.help) {
+    errors.push(`twin "${op.id}" help exit ${windows.help} (windows) != ${posix.help} (posix)`);
+  }
+  if (windows.usage !== posix.usage) {
+    errors.push(`twin "${op.id}" usage exit ${windows.usage} (windows) != ${posix.usage} (posix)`);
+  }
+}
+
+function assertTwinResults(op, results, errors) {
+  for (const [side, result] of Object.entries(results)) {
+    if (result.help !== 0) errors.push(`twin "${op.id}" ${side} must exit 0 for "help", got ${result.help}`);
+    if (result.usage !== 2) errors.push(`twin "${op.id}" ${side} must exit 2 with no arguments, got ${result.usage}`);
   }
 }
 

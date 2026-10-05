@@ -18,6 +18,14 @@ import { isMain } from './lib/proc.mjs';
 
 const MODES = new Set(['lines', 'branches', 'both']);
 
+const OPTION_VALUES = new Map([
+  ['--lcov', ['lcov', String]],
+  ['--base', ['base', String]],
+  ['--mode', ['mode', String]],
+  ['--threshold', ['threshold', Number]],
+  ['--branch-threshold', ['branchThreshold', Number]],
+]);
+
 function parseArgs(argv) {
   const options = {
     lcov: 'coverage/lcov.info',
@@ -31,12 +39,11 @@ function parseArgs(argv) {
   };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
-    if (arg === '-h' || arg === '--help') options.help = true;
-    else if (arg === '--lcov') { options.lcov = argv[i + 1]; i += 1; }
-    else if (arg === '--base') { options.base = argv[i + 1]; i += 1; }
-    else if (arg === '--mode') { options.mode = argv[i + 1]; i += 1; }
-    else if (arg === '--threshold') { options.threshold = Number(argv[i + 1]); i += 1; }
-    else if (arg === '--branch-threshold') { options.branchThreshold = Number(argv[i + 1]); i += 1; }
+    const spec = OPTION_VALUES.get(arg);
+    if (spec) {
+      i += 1;
+      options[spec[0]] = spec[1](argv[i]);
+    } else if (arg === '-h' || arg === '--help') options.help = true;
     else if (arg === '--crap') options.crap = true;
     else if (arg === '--allow-missing-branch') options.allowMissingBranch = true;
   }
@@ -71,34 +78,38 @@ export function parseLcov(text) {
     if (line.startsWith('SF:')) {
       current = { lines: new Map(), branches: [], functions: [] };
       files.set(line.slice(3).trim(), current);
-    } else if (!current) {
-      continue;
-    } else if (line.startsWith('DA:')) {
-      const [number, hits] = line.slice(3).split(',');
-      current.lines.set(Number(number), Number(hits));
-    } else if (line.startsWith('BRDA:')) {
-      const [at, block, branch, taken] = line.slice(5).split(',');
-      current.branches.push({
-        line: Number(at),
-        block: Number(block),
-        branch: Number(branch),
-        taken: taken === '-' ? 0 : Number(taken),
-      });
-    } else if (line.startsWith('FNDA:')) {
-      const rest = line.slice(5);
-      const comma = rest.indexOf(',');
-      const count = Number(rest.slice(0, comma));
-      const name = rest.slice(comma + 1);
-      const fn = current.functions.find((entry) => entry.name === name);
-      if (fn) fn.count = count;
-    } else if (line.startsWith('FN:')) {
-      current.functions.push(parseFunction(line));
-    } else if (line === 'end_of_record') {
+    } else if (current && line === 'end_of_record') {
       current = null;
+    } else if (current) {
+      applyRecordLine(current, line);
     }
   }
   for (const record of files.values()) deriveSpans(record.functions);
   return files;
+}
+
+function applyRecordLine(record, line) {
+  if (line.startsWith('DA:')) {
+    const [number, hits] = line.slice(3).split(',');
+    record.lines.set(Number(number), Number(hits));
+  } else if (line.startsWith('BRDA:')) {
+    const [at, block, branch, taken] = line.slice(5).split(',');
+    record.branches.push({
+      line: Number(at),
+      block: Number(block),
+      branch: Number(branch),
+      taken: taken === '-' ? 0 : Number(taken),
+    });
+  } else if (line.startsWith('FNDA:')) {
+    const rest = line.slice(5);
+    const comma = rest.indexOf(',');
+    const count = Number(rest.slice(0, comma));
+    const name = rest.slice(comma + 1);
+    const fn = record.functions.find((entry) => entry.name === name);
+    if (fn) fn.count = count;
+  } else if (line.startsWith('FN:')) {
+    record.functions.push(parseFunction(line));
+  }
 }
 
 function changedLines(base) {
@@ -134,7 +145,7 @@ function toForwardSlashes(path) {
 
 export function matchReport(files, rel) {
   const target = toForwardSlashes(rel);
-  const suffix = '/' + target;
+  const suffix = `/${target}`;
   for (const [name, data] of files) {
     const normalized = toForwardSlashes(name);
     if (normalized === target || normalized.endsWith(suffix)) return data;
@@ -181,78 +192,94 @@ export function evaluate(options, files, changed) {
   const hasBranches = [...files.values()].some((record) => record.branches.length > 0);
   const hasFunctions = [...files.values()].some((record) => record.functions.length > 0);
 
-  let mode = options.mode;
-  let degraded = false;
-  if ((mode === 'branches' || mode === 'both') && !hasBranches) {
-    if (!options.allowMissingBranch) {
-      stderr.push(`patch-coverage: branch data unavailable in ${options.lcov} (no BRDA records), fail`);
-      return { code: EXIT.FAIL, stdout, stderr };
-    }
-    stdout.push('patch-coverage: branch data unavailable, degraded to line coverage; CRAP unavailable');
-    mode = 'lines';
-    degraded = true;
-  }
+  const branch = resolveMode(options, hasBranches, stdout, stderr);
+  if (branch.failed) return { code: EXIT.FAIL, stdout, stderr };
 
-  let lineMeasured = 0;
-  let lineCovered = 0;
-  let branchMeasured = 0;
-  let branchCovered = 0;
-  const gaps = [];
-  for (const [rel, lines] of changed) {
-    const record = matchReport(files, rel);
-    if (!record) continue;
-    if (mode === 'lines' || mode === 'both') {
-      const unit = lineUnits(record, lines);
-      lineMeasured += unit.measured;
-      lineCovered += unit.covered;
-      if (unit.measured > 0 && unit.covered < unit.measured) {
-        gaps.push(`  ${rel}: ${unit.covered}/${unit.measured} changed lines covered`);
-      }
-    }
-    if (mode === 'branches' || mode === 'both') {
-      const unit = branchUnits(record, lines);
-      branchMeasured += unit.measured;
-      branchCovered += unit.covered;
-      if (unit.measured > 0 && unit.covered < unit.measured) {
-        gaps.push(`  ${rel}: ${unit.covered}/${unit.measured} changed branches covered`);
-      }
-    }
-  }
+  const totals = aggregateUnits(branch.mode, files, changed);
 
-  if (lineMeasured === 0 && branchMeasured === 0) {
+  if (totals.lineMeasured === 0 && totals.branchMeasured === 0) {
     stdout.push('patch-coverage: no measured changed units, pass');
     return { code: EXIT.OK, stdout, stderr };
   }
 
-  let ok = true;
-  if ((mode === 'lines' || mode === 'both') && lineMeasured > 0) {
-    const percent = (lineCovered / lineMeasured) * 100;
-    stdout.push(`patch-coverage: ${lineCovered}/${lineMeasured} changed lines covered (${percent.toFixed(1)}%), threshold ${options.threshold}%`);
-    if (percent < options.threshold) ok = false;
-  }
-  if ((mode === 'branches' || mode === 'both') && branchMeasured > 0) {
-    const percent = (branchCovered / branchMeasured) * 100;
-    stdout.push(`patch-coverage: ${branchCovered}/${branchMeasured} changed branches covered (${percent.toFixed(1)}%), threshold ${options.branchThreshold}%`);
-    if (percent < options.branchThreshold) ok = false;
-  }
-  stdout.push(...gaps);
+  const ok = reportThresholds(options, branch.mode, totals, stdout);
+  stdout.push(...totals.gaps);
 
-  if (options.crap && !degraded) {
-    if (hasBranches && hasFunctions) {
-      for (const [rel, lines] of changed) {
-        const record = matchReport(files, rel);
-        if (!record) continue;
-        for (const fn of record.functions) {
-          if (!touches(fn, lines)) continue;
-          stdout.push(`patch-coverage: CRAP ${crapScore(record, fn).toFixed(1)} ${rel}:${fn.start} ${fn.name} (advisory)`);
-        }
-      }
-    } else {
-      stdout.push('patch-coverage: CRAP unavailable (needs both BRDA and FN records)');
-    }
+  if (options.crap && !branch.degraded) {
+    reportCrap(files, changed, hasBranches, hasFunctions, stdout);
   }
 
   return { code: ok ? EXIT.OK : EXIT.FAIL, stdout, stderr };
+}
+
+function resolveMode(options, hasBranches, stdout, stderr) {
+  const wantsBranches = options.mode === 'branches' || options.mode === 'both';
+  if (!wantsBranches || hasBranches) return { mode: options.mode, degraded: false, failed: false };
+  if (!options.allowMissingBranch) {
+    stderr.push(`patch-coverage: branch data unavailable in ${options.lcov} (no BRDA records), fail`);
+    return { mode: options.mode, degraded: false, failed: true };
+  }
+  stdout.push('patch-coverage: branch data unavailable, degraded to line coverage; CRAP unavailable');
+  return { mode: 'lines', degraded: true, failed: false };
+}
+
+function aggregateUnits(mode, files, changed) {
+  const totals = { lineMeasured: 0, lineCovered: 0, branchMeasured: 0, branchCovered: 0, gaps: [] };
+  for (const [rel, lines] of changed) {
+    const record = matchReport(files, rel);
+    if (!record) continue;
+    if (mode === 'lines' || mode === 'both') addLineUnits(totals, record, lines, rel);
+    if (mode === 'branches' || mode === 'both') addBranchUnits(totals, record, lines, rel);
+  }
+  return totals;
+}
+
+function addLineUnits(totals, record, lines, rel) {
+  const unit = lineUnits(record, lines);
+  totals.lineMeasured += unit.measured;
+  totals.lineCovered += unit.covered;
+  if (unit.measured > 0 && unit.covered < unit.measured) {
+    totals.gaps.push(`  ${rel}: ${unit.covered}/${unit.measured} changed lines covered`);
+  }
+}
+
+function addBranchUnits(totals, record, lines, rel) {
+  const unit = branchUnits(record, lines);
+  totals.branchMeasured += unit.measured;
+  totals.branchCovered += unit.covered;
+  if (unit.measured > 0 && unit.covered < unit.measured) {
+    totals.gaps.push(`  ${rel}: ${unit.covered}/${unit.measured} changed branches covered`);
+  }
+}
+
+function reportThresholds(options, mode, totals, stdout) {
+  let ok = true;
+  if ((mode === 'lines' || mode === 'both') && totals.lineMeasured > 0) {
+    const percent = (totals.lineCovered / totals.lineMeasured) * 100;
+    stdout.push(`patch-coverage: ${totals.lineCovered}/${totals.lineMeasured} changed lines covered (${percent.toFixed(1)}%), threshold ${options.threshold}%`);
+    if (percent < options.threshold) ok = false;
+  }
+  if ((mode === 'branches' || mode === 'both') && totals.branchMeasured > 0) {
+    const percent = (totals.branchCovered / totals.branchMeasured) * 100;
+    stdout.push(`patch-coverage: ${totals.branchCovered}/${totals.branchMeasured} changed branches covered (${percent.toFixed(1)}%), threshold ${options.branchThreshold}%`);
+    if (percent < options.branchThreshold) ok = false;
+  }
+  return ok;
+}
+
+function reportCrap(files, changed, hasBranches, hasFunctions, stdout) {
+  if (!hasBranches || !hasFunctions) {
+    stdout.push('patch-coverage: CRAP unavailable (needs both BRDA and FN records)');
+    return;
+  }
+  for (const [rel, lines] of changed) {
+    const record = matchReport(files, rel);
+    if (!record) continue;
+    for (const fn of record.functions) {
+      if (!touches(fn, lines)) continue;
+      stdout.push(`patch-coverage: CRAP ${crapScore(record, fn).toFixed(1)} ${rel}:${fn.start} ${fn.name} (advisory)`);
+    }
+  }
 }
 
 function main() {

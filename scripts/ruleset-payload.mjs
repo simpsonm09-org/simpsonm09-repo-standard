@@ -33,9 +33,13 @@ function parseArgs(argv) {
   const args = { file: undefined, level: 'read', appId: undefined, selfTest: false };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
-    if (arg === '--level') args.level = argv[(index += 1)];
-    else if (arg === '--app-id') args.appId = argv[(index += 1)];
-    else if (arg === '--self-test') args.selfTest = true;
+    if (arg === '--level') {
+      index += 1;
+      args.level = argv[index];
+    } else if (arg === '--app-id') {
+      index += 1;
+      args.appId = argv[index];
+    } else if (arg === '--self-test') args.selfTest = true;
     else if (!args.file) args.file = arg;
   }
   return args;

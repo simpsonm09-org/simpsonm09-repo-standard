@@ -70,22 +70,36 @@ function checkApi(repo, add, notice) {
   else if (!(topics.value?.names ?? []).includes(owner)) add('settings/topics', `topics do not include the owner "${owner}"`);
 
   if (value.visibility !== 'public') return;
+  checkPublicRuleset(repo, add, notice);
+}
+
+function checkPublicRuleset(repo, add, notice) {
   const rulesets = ghJson(['api', '--paginate', `repos/${repo}/rulesets`, '--jq', '[.[] | select(.name=="protect-main")] | length']);
-  if (!rulesets.ok) notice(`cannot read ${repo} rulesets: ${rulesets.error}`);
-  else if (Number(rulesets.value) === 0) add('ruleset/protect-main', 'public repository has no protect-main ruleset');
-  else {
-    const id = ghJson(['api', `repos/${repo}/rulesets`, '--jq', '.[] | select(.name=="protect-main") | .id']);
-    if (!id.ok) notice(`cannot read the protect-main id: ${id.error}`);
-    else {
-      const detail = ghJson(['api', `repos/${repo}/rulesets/${id.value}`]);
-      if (!detail.ok) notice(`cannot read protect-main: ${detail.error}`);
-      else {
-        const rule = (detail.value.rules ?? []).find((entry) => entry.type === 'pull_request');
-        const count = rule?.parameters?.required_approving_review_count;
-        if (count !== 1) add('ruleset/approval', `protect-main requires ${count ?? 'no'} approving review, expected 1`);
-      }
-    }
+  if (!rulesets.ok) {
+    notice(`cannot read ${repo} rulesets: ${rulesets.error}`);
+    return;
   }
+  if (Number(rulesets.value) === 0) {
+    add('ruleset/protect-main', 'public repository has no protect-main ruleset');
+    return;
+  }
+  checkRulesetApprovals(repo, add, notice);
+}
+
+function checkRulesetApprovals(repo, add, notice) {
+  const id = ghJson(['api', `repos/${repo}/rulesets`, '--jq', '.[] | select(.name=="protect-main") | .id']);
+  if (!id.ok) {
+    notice(`cannot read the protect-main id: ${id.error}`);
+    return;
+  }
+  const detail = ghJson(['api', `repos/${repo}/rulesets/${id.value}`]);
+  if (!detail.ok) {
+    notice(`cannot read protect-main: ${detail.error}`);
+    return;
+  }
+  const rule = (detail.value.rules ?? []).find((entry) => entry.type === 'pull_request');
+  const count = rule?.parameters?.required_approving_review_count;
+  if (count !== 1) add('ruleset/approval', `protect-main requires ${count ?? 'no'} approving review, expected 1`);
 }
 
 function groupOf(id) {
@@ -112,19 +126,29 @@ function main() {
   const notices = [];
   const notice = (message) => notices.push(message);
 
-  if (options.api && repo) {
-    if (capture('gh', ['--version']).status === 0) checkApi(repo, (id, message) => gaps.push({ id, message }), notice);
-    else notice('gh is not on PATH, so the API checks are skipped');
-  }
+  if (options.api && repo) runApiChecks(repo, gaps, notice);
 
-  let exceptions = [];
+  const exceptions = loadExceptionsOrExit();
+  const { open, excepted } = partitionGaps(gaps, repo, exceptions);
+  report(root, repo, open, excepted, notices);
+  process.exit(open.length === 0 ? EXIT.OK : EXIT.FAIL);
+}
+
+function runApiChecks(repo, gaps, notice) {
+  if (capture('gh', ['--version']).status === 0) checkApi(repo, (id, message) => gaps.push({ id, message }), notice);
+  else notice('gh is not on PATH, so the API checks are skipped');
+}
+
+function loadExceptionsOrExit() {
   try {
-    exceptions = loadExceptions(resolve(STANDARD_ROOT, 'docs/exceptions.json'));
+    return loadExceptions(resolve(STANDARD_ROOT, 'docs/exceptions.json'));
   } catch (error) {
     process.stderr.write(`check-repo: cannot read the exception file: ${error.message}\n`);
     process.exit(EXIT.FAIL);
   }
+}
 
+function partitionGaps(gaps, repo, exceptions) {
   const open = [];
   const excepted = [];
   for (const gap of gaps) {
@@ -132,7 +156,10 @@ function main() {
     if (match) excepted.push({ gap, match });
     else open.push(gap);
   }
+  return { open, excepted };
+}
 
+function report(root, repo, open, excepted, notices) {
   const header = ['repo'.padEnd(30), ...GROUPS.map((group) => group.padEnd(11))].join('');
   const row = [(repo ?? root).padEnd(30), ...GROUPS.map((group) => statusFor(open, group).padEnd(11))].join('');
   process.stdout.write(`check-repo  ${root}\n`);
@@ -144,7 +171,6 @@ function main() {
   }
   for (const message of notices) process.stdout.write(`notice: ${message}\n`);
   process.stdout.write(`\nstandard: ${open.length === 0 ? 'ok' : 'failed'}\n`);
-  process.exit(open.length === 0 ? EXIT.OK : EXIT.FAIL);
 }
 
 if (isMain(import.meta.url)) main();

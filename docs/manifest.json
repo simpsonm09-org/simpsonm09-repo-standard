@@ -1,5 +1,8 @@
 {
   "readme": true,
-  "features": ["docs/features/fleet-conformance.md", "docs/features/agent-access.md"],
+  "features": [
+    "docs/features/fleet-conformance.md",
+    "docs/features/agent-access.md"
+  ],
   "diagrams": ["docs/architecture.md"]
 }

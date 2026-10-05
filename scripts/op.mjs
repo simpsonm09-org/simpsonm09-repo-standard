@@ -23,13 +23,8 @@ function parseArgs(argv) {
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--root' || arg === '--ops') {
-      const value = argv[index + 1];
-      if (value === undefined || value.startsWith('--')) {
-        exitUsage(`missing value for ${arg}`);
-      }
-      if (arg === '--root') parsed.root = value;
-      else parsed.ops = value;
       index += 1;
+      assignOption(parsed, arg, argv[index]);
     } else if (arg === '-h' || arg === '--help') {
       parsed.command = 'help';
     } else if (parsed.command === null) {
@@ -41,16 +36,16 @@ function parseArgs(argv) {
   return parsed;
 }
 
+function assignOption(parsed, arg, value) {
+  if (value === undefined || value.startsWith('--')) exitUsage(`missing value for ${arg}`);
+  if (arg === '--root') parsed.root = value;
+  else parsed.ops = value;
+}
+
 function resolveRoot(explicit) {
   if (explicit) return resolve(explicit);
   if (process.env.REPO_ROOT) return resolve(process.env.REPO_ROOT);
   return resolve(HERE, '..');
-}
-
-function exitUsage(message) {
-  process.stderr.write(`op: ${message}\n`);
-  process.stderr.write(USAGE);
-  process.exit(EXIT.USAGE);
 }
 
 function main() {
@@ -70,35 +65,39 @@ function main() {
     process.stderr.write(`op: cannot read ${parsed.ops ?? join(root, OPS_FILE)}: ${error.message}\n`);
     process.exit(EXIT.FAIL);
   }
-  const ops = loaded.data;
 
-  switch (command) {
-    case 'list': {
-      for (const op of ops.operations ?? []) {
-        process.stdout.write(`${op.id}\t${op.kind ?? 'portable'}\t${op.description ?? ''}\n`);
-      }
-      process.exit(EXIT.OK);
-    }
-    case 'render': {
-      const errors = validateShape(ops).errors;
-      if (errors.length > 0) return fail(errors);
-      writeFileSync(join(root, GENERATED_FILE), render(ops));
-      process.stdout.write(`wrote ${GENERATED_FILE}\n`);
-      process.exit(EXIT.OK);
-    }
-    case 'check': {
-      const { errors, notices } = checkConvention(root, ops);
-      for (const notice of notices) process.stdout.write(`notice: ${notice}\n`);
-      if (errors.length > 0) return fail(errors);
-      process.stdout.write(`check: ok (${(ops.operations ?? []).length} operations)\n`);
-      process.exit(EXIT.OK);
-    }
-    case 'run': {
-      process.exit(runOperation(root, ops, parsed.rest));
-    }
-    default:
-      exitUsage(`unknown command "${command}"`);
+  process.exit(dispatch(command, root, loaded.data, parsed.rest));
+}
+
+function dispatch(command, root, ops, rest) {
+  if (command === 'list') return listOps(ops);
+  if (command === 'render') return renderOps(root, ops);
+  if (command === 'check') return checkOps(root, ops);
+  if (command === 'run') return runOperation(root, ops, rest);
+  return usage(`unknown command "${command}"`);
+}
+
+function listOps(ops) {
+  for (const op of ops.operations ?? []) {
+    process.stdout.write(`${op.id}\t${op.kind ?? 'portable'}\t${op.description ?? ''}\n`);
   }
+  return EXIT.OK;
+}
+
+function renderOps(root, ops) {
+  const errors = validateShape(ops).errors;
+  if (errors.length > 0) return fail(errors);
+  writeFileSync(join(root, GENERATED_FILE), render(ops));
+  process.stdout.write(`wrote ${GENERATED_FILE}\n`);
+  return EXIT.OK;
+}
+
+function checkOps(root, ops) {
+  const { errors, notices } = checkConvention(root, ops);
+  for (const notice of notices) process.stdout.write(`notice: ${notice}\n`);
+  if (errors.length > 0) return fail(errors);
+  process.stdout.write(`check: ok (${(ops.operations ?? []).length} operations)\n`);
+  return EXIT.OK;
 }
 
 function runOperation(root, ops, rest) {
@@ -132,6 +131,12 @@ function usage(message) {
   process.stderr.write(`op: ${message}\n`);
   process.stderr.write(USAGE);
   return EXIT.USAGE;
+}
+
+function exitUsage(message) {
+  process.stderr.write(`op: ${message}\n`);
+  process.stderr.write(USAGE);
+  process.exit(EXIT.USAGE);
 }
 
 function fail(errors) {
