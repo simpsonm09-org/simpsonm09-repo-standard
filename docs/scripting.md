@@ -15,6 +15,32 @@ Operational scripts live in `scripts/`. Each script ships as a bash version and 
 - Land a new flag or check in both versions in the same change.
 - Run consistent error handling. The bash version sets `set -euo pipefail`. The PowerShell version sets `Set-StrictMode -Version Latest` and `$ErrorActionPreference = 'Stop'`.
 
+## Declaring a single-platform script
+
+Most scripts are twins. When a script is legitimately single-platform, say so in a header comment within the first ten lines. The conformance check reads the comment and stops asking for a missing twin.
+
+```bash
+# platforms: posix
+```
+
+Use `# platforms: windows` for a PowerShell-only script. The value is one word, `windows` or `posix`. Do not add a sidecar file.
+
+## Conformance
+
+`scripts/check-standard.mjs` runs a `scripting` group over a repository. Each rule is a named entry in the printed matrix.
+
+| Entry | Rule |
+| --- | --- |
+| `scripting/windows-shell` | the root `justfile` has a `set windows-shell` line |
+| `scripting/shell-ops` | a recipe body has no `&&`, `;`, `|`, redirection, `$VAR`, or `./` |
+| `scripting/interpreter` | a recipe body names no interpreter outside a `{{ ... }}` expression or a `mise exec`/`mise run` line |
+| `scripting/twin-exists` | a recipe that routes on `os_family()` or `os()` points at scripts that exist |
+| `scripting/script-declared` | every `scripts/**/*.ps1` and `scripts/**/*.sh` is referenced by an op or recipe, or declares its platform |
+| `scripting/skill-recipe` | a non-vendored skill says `just <recipe>`, never a script path |
+| `scripting/tools-check` | a repository with a `tools.yaml` has a `tools-check` recipe |
+
+Run the group on one repository with `just check-standard .`. Run it over the whole fleet with `just audit-fleet <repos-dir>`, which prints one matrix and exits non-zero when any repository fails. Vendored PStack skills are exempt.
+
 ## Running
 
 ```bash

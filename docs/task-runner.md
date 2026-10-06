@@ -47,6 +47,12 @@ Pass arguments in the POSIX spelling. `--apply` and a positional `<owner>/<repo>
 
 Start from [`../templates/justfile`](../templates/justfile).
 
+## Conformance
+
+The standard checks every repository's recipes with the `scripting` group in `scripts/check-standard.mjs`. A recipe body stays portable: no shell operators, no `$VAR`, no relative `./` path, and no interpreter name. Name an interpreter only inside a `{{ ... }}` expression or on a `mise exec`/`mise run` line. Route platform logic through a twin and call it as `just <recipe>`.
+
+Run the check on one repository with `just check-standard .`. Run it over the fleet with `just audit-fleet <repos-dir>`, which prints one matrix and exits non-zero when any repository fails. See [`scripting.md`](scripting.md).
+
 ## Pinning
 
 `just` is pinned in `mise.toml`. Run `mise install` to get it. Dependabot does not manage `mise.toml`, so bump the pin by hand.

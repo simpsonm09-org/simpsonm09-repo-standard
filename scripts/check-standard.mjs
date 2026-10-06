@@ -43,9 +43,31 @@ export const COMMUNITY_PATHS = [
 const SHARED_JOBS = ['lint', 'aislop', 'security'];
 const STANDARD_REPO = 'simpsonm09-org/simpsonm09-repo-standard';
 const SHA_PATTERN = /^[0-9a-fA-F]{40}$/;
-const GROUPS = ['files', 'mise', 'ci', 'dependabot', 'community', 'docs'];
+const GROUPS = ['files', 'mise', 'ci', 'dependabot', 'community', 'docs', 'scripting'];
 const DIAGRAM_FENCES = ['mermaid', 'plantuml', 'graphviz', 'dot'];
 const MANIFEST_KEYS = new Set(['readme', 'features', 'diagrams', 'api']);
+
+// Scripting conformance. A recipe body is portable or a routed twin. The names
+// the checker reports (scripting/<rule>) are stable ids a repository can except
+// with the existing exception file.
+const INTERPRETERS = new Set(['bash', 'pwsh', 'powershell', 'sh', 'cmd', 'python', 'python3']);
+const SHELL_OPERATORS = [
+  { pattern: /&&/, label: 'shell operator &&' },
+  { pattern: /;/, label: 'shell operator ;' },
+  { pattern: /\|/, label: 'shell operator |' },
+  { pattern: /[<>]/, label: 'shell redirection' },
+  { pattern: /\$[A-Za-z_{]/, label: 'shell variable expansion' },
+  { pattern: /\.\//, label: 'relative ./ path' },
+  { pattern: /\.\\/, label: 'relative .\\ path' },
+];
+const DECLARED_SCRIPT_EXTENSIONS = ['.ps1', '.sh'];
+const SKILL_SCRIPT_PATTERNS = [
+  /(?<![\w./\\-])scripts[\\/][^\s`)"'<>]+\.(?:ps1|sh|py|mjs)\b/i,
+  /(?<![\w./\\-])windows[\\/][^\s`)"'<>]+\.ps1\b/i,
+  /(?<![\w./\\-])wsl[\\/][^\s`)"'<>]+\.sh\b/i,
+  /pwsh\s+-File\b/i,
+  /(?<![\w./\\-])bash\s+[^\s`)"'<>]+\.(?:sh|ps1|py|mjs)\b/i,
+];
 
 function readText(path) {
   return readFileSync(path, 'utf8');
@@ -494,6 +516,182 @@ function hasOpenapiVersion(spec, text) {
   return /^\s*(openapi|asyncapi):\s*\S/m.test(text);
 }
 
+function isRecipeHeader(line) {
+  return /^@?[A-Za-z_][A-Za-z0-9_-]*(?:\s+[^:\n]*)?:(?!=)/.test(line);
+}
+
+function recipeName(line) {
+  const match = /^@?([A-Za-z_][A-Za-z0-9_-]*)/.exec(line);
+  return match ? match[1] : line;
+}
+
+// A recipe body is the run of indented, non-comment lines under a recipe
+// header. A blank line or a non-indented line ends the run; a comment is
+// skipped and keeps the current header.
+function recipeBodies(text) {
+  const bodies = [];
+  let header = null;
+  for (const line of text.split('\n')) {
+    if (/^\s*$/.test(line)) {
+      header = null;
+    } else if (/^[^\s]/.test(line)) {
+      header = isRecipeHeader(line) ? recipeName(line) : null;
+    } else if (header && !/^\s*#/.test(line)) {
+      bodies.push({ header, line: line.trim() });
+    }
+  }
+  return bodies;
+}
+
+function checkWindowsShell(root, add) {
+  const file = join(root, 'justfile');
+  if (!existsSync(file)) return;
+  if (!/^\s*set\s+windows-shell\b/m.test(normalize(readText(file)))) {
+    add('scripting/windows-shell', 'justfile has no "set windows-shell" line');
+  }
+}
+
+function checkShellOps(header, line, add) {
+  for (const { pattern, label } of SHELL_OPERATORS) {
+    if (pattern.test(line)) {
+      add('scripting/shell-ops', `recipe "${header}" uses ${label}: ${line}`);
+      return;
+    }
+  }
+}
+
+function interpreterName(token) {
+  const trimmed = token.replace(/^[^A-Za-z0-9]+/, '').replace(/[^A-Za-z0-9.]+$/, '');
+  const base = trimmed.split(/[\\/]/).pop() ?? '';
+  return base.replace(/\.(exe|cmd|bat)$/i, '').toLowerCase();
+}
+
+function checkInterpreter(header, line, add) {
+  if (/\bmise\s+(?:exec|run)\b/.test(line)) return;
+  for (const token of line.replace(/\{\{[\s\S]*?\}\}/g, ' ').split(/\s+/)) {
+    const name = interpreterName(token);
+    if (INTERPRETERS.has(name)) {
+      add('scripting/interpreter', `recipe "${header}" names interpreter "${name}": ${line}`);
+      return;
+    }
+  }
+}
+
+function quotedScriptPaths(line) {
+  const out = [];
+  for (const match of line.matchAll(/"([^"]*)"|'([^']*)'/g)) {
+    const text = match[1] ?? match[2] ?? '';
+    for (const path of text.matchAll(/[A-Za-z0-9_./\\-]+\.(?:ps1|sh|py|mjs)\b/g)) out.push(toPosix(path[0]));
+  }
+  return out;
+}
+
+function checkTwinExists(root, bodies, add) {
+  for (const { header, line } of bodies) {
+    if (!/\bos(?:_family)?\s*\(/.test(line)) continue;
+    for (const rel of quotedScriptPaths(line)) {
+      if (!existsSync(join(root, rel))) {
+        add('scripting/twin-exists', `recipe "${header}" routes to missing script ${rel}`);
+      }
+    }
+  }
+}
+
+function scriptTokens(run) {
+  const out = [];
+  for (const token of run.split(/\s+/)) {
+    if (/\.(?:ps1|sh|py|mjs)$/i.test(token)) out.push(toPosix(token.replace(/^\.\//, '')));
+  }
+  return out;
+}
+
+function opScriptPaths(root) {
+  const file = join(root, 'ops.json');
+  if (!existsSync(file)) return [];
+  let data;
+  try {
+    data = JSON.parse(normalize(readText(file)));
+  } catch {
+    return [];
+  }
+  const out = [];
+  for (const op of data.operations ?? []) {
+    for (const rel of [op.windows, op.posix]) {
+      if (rel) out.push(toPosix(rel));
+    }
+    if (typeof op.run === 'string') out.push(...scriptTokens(op.run));
+  }
+  return out;
+}
+
+function declaresPlatform(file) {
+  const head = normalize(readText(file)).replace(/\r\n/g, '\n').split('\n').slice(0, 10);
+  return head.some((line) => /^\s*#\s*platforms:\s*(?:windows|posix)\b/i.test(line));
+}
+
+// A script is reachable from an op manifest entry or from the justfile text.
+// The justfile text already folds in imported files such as ops.generated.just.
+function checkScriptsDeclared(root, text, add) {
+  const referenced = new Set(opScriptPaths(root));
+  for (const file of listFiles(join(root, 'scripts'), DECLARED_SCRIPT_EXTENSIONS)) {
+    const rel = toPosix(relative(root, file));
+    if (referenced.has(rel) || text.includes(rel) || declaresPlatform(file)) continue;
+    add('scripting/script-declared', `${rel} is not referenced by an op or recipe and declares no "# platforms:" line`);
+  }
+}
+
+function skillFiles(root) {
+  const out = listFiles(join(root, 'skills'), ['.md']).filter((file) => basename(file) === 'SKILL.md');
+  for (const file of listFiles(join(root, '.opencode', 'skills'), ['.md'])) {
+    if (basename(file) === 'SKILL.md') out.push(file);
+  }
+  return out;
+}
+
+// The PStack skill tree is vendored: a repository that pins it carries a
+// pstack.lock.json at the root, and its skills/ are byte-identical upstream.
+function isVendoredSkill(root, rel) {
+  if (rel.startsWith('vendor/')) return true;
+  return rel.startsWith('skills/') && existsSync(join(root, 'pstack.lock.json'));
+}
+
+function checkSkillRecipes(root, add) {
+  for (const file of skillFiles(root)) {
+    const rel = toPosix(relative(root, file));
+    if (isVendoredSkill(root, rel)) continue;
+    const text = normalize(readText(file)).replace(/\r\n/g, '\n');
+    for (const pattern of SKILL_SCRIPT_PATTERNS) {
+      const match = pattern.exec(text);
+      if (match) {
+        add('scripting/skill-recipe', `${rel} names a script path (${match[0].trim()}); a skill calls "just <recipe>"`);
+        break;
+      }
+    }
+  }
+}
+
+function checkToolsRecipe(root, text, add) {
+  if (!existsSync(join(root, 'tools.yaml'))) return;
+  if (!/^@?tools-check(?:\s+[^:\n]*)?:(?!=)/m.test(text)) {
+    add('scripting/tools-check', 'tools.yaml exists but the justfile has no "tools-check" recipe');
+  }
+}
+
+export function checkScripting(root, add) {
+  const repoRoot = resolve(root);
+  const text = justfileText(repoRoot);
+  const bodies = recipeBodies(text);
+  checkWindowsShell(repoRoot, add);
+  for (const { header, line } of bodies) {
+    checkShellOps(header, line, add);
+    checkInterpreter(header, line, add);
+  }
+  checkTwinExists(repoRoot, bodies, add);
+  checkScriptsDeclared(repoRoot, text, add);
+  checkSkillRecipes(repoRoot, add);
+  checkToolsRecipe(repoRoot, text, add);
+}
+
 export function checkStandard(root) {
   const repoRoot = resolve(root);
   const gaps = [];
@@ -504,6 +702,7 @@ export function checkStandard(root) {
   checkDependabot(repoRoot, add);
   checkCommunity(repoRoot, add);
   checkDocs(repoRoot, add);
+  checkScripting(repoRoot, add);
   return { root: repoRoot, gaps };
 }
 
