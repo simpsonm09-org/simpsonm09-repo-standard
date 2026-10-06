@@ -26,6 +26,8 @@ A repository that calls the shared coverage workflow defines the `coverage` reci
 
 An operation whose logic must differ by platform is a twin. It has a bash version and a PowerShell version under `scripts/` and one recipe. See [`scripting.md`](scripting.md).
 
+A single-platform script declares its platform in a header comment within the first ten lines. The value is `windows`, `posix`, `linux`, or `macos`. A `.ps1` file declares `windows`; a `.sh` file declares `posix` when it is portable, or the more specific `linux` or `macos` when it is not.
+
 Call a twin the same way on every platform. Do not name the interpreter or the script file in the call.
 
 ```bash
@@ -41,11 +43,17 @@ Pass arguments in the POSIX spelling. `--apply` and a positional `<owner>/<repo>
 ## Author rules
 
 - Prefer a portable recipe. Split into per-platform scripts only when the logic needs the platform.
-- Call a portable executable. Do not put shell operators (`&&`, `;`, `|`), `$VAR`, or Unix-only commands in a recipe.
+- Call a portable executable. Do not put shell operators (`&&`, `&`, `;`, `|`), redirection, `$VAR`, backtick substitution, `./`, or `.\` in a recipe.
 - Put multi-step logic in a script under `scripts/` and call it from the recipe.
 - Keep the `set windows-shell` line at the top so a recipe behaves the same on Windows.
 
 Start from [`../templates/justfile`](../templates/justfile).
+
+## Conformance
+
+The standard checks every repository's recipes with the `scripting` group in `scripts/check-standard.mjs`. A recipe body stays portable: no shell operators, no `$VAR`, no relative `./` path, and no interpreter name. Name an interpreter only inside a `{{ ... }}` expression or on a `mise exec`/`mise run` line. Route platform logic through a twin and call it as `just <recipe>`.
+
+Run the check on one repository with `just check-standard .`. Run it over the fleet with `just audit-fleet <repos-dir>`, which prints one matrix and exits non-zero when any repository fails. See [`scripting.md`](scripting.md).
 
 ## Pinning
 

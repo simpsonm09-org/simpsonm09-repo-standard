@@ -62,6 +62,12 @@
       "description": "Run the patch-coverage matcher tests."
     },
     {
+      "id": "test-scripting",
+      "kind": "portable",
+      "run": "node scripts/scripting.test.mjs",
+      "description": "Run the scripting conformance rule tests over fixtures."
+    },
+    {
       "id": "verify",
       "kind": "portable",
       "run": "node scripts/verify.mjs",
@@ -92,6 +98,13 @@
       "args": true,
       "run": "node scripts/check-repo.mjs",
       "description": "Check one repository against the standard, applying the exception file."
+    },
+    {
+      "id": "audit-fleet",
+      "kind": "portable",
+      "args": true,
+      "run": "node scripts/audit-fleet.mjs",
+      "description": "Audit the scripting conformance of every repository in a directory and print one matrix."
     },
     {
       "id": "agent-access",

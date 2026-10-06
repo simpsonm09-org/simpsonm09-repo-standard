@@ -43,6 +43,10 @@ test-agent-access:
 test-patch-coverage:
     {{op}} run test-patch-coverage
 
+# Run the scripting conformance rule tests over fixtures.
+test-scripting:
+    {{op}} run test-scripting
+
 # Run the local CI mirror: lint, test, aislop, security, and secret scan.
 verify:
     {{op}} run verify
@@ -62,6 +66,10 @@ check-standard *args:
 # Check one repository against the standard, applying the exception file.
 check-repo *args:
     {{op}} run check-repo {{args}}
+
+# Audit the scripting conformance of every repository in a directory and print one matrix.
+audit-fleet *args:
+    {{op}} run audit-fleet {{args}}
 
 # Resolve a repository's agent access level and capabilities.
 agent-access *args:

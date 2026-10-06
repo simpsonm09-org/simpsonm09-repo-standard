@@ -9,8 +9,9 @@ import { EXIT } from './lib/exit.mjs';
 import { isMain } from './lib/proc.mjs';
 import { runTest as runAgentAccess } from './agent-access.test.mjs';
 import { runTest as runPatchCoverage } from './patch-coverage.test.mjs';
+import { runTest as runScripting } from './scripting.test.mjs';
 
-const SUITES = [runAgentAccess, runPatchCoverage];
+const SUITES = [runAgentAccess, runPatchCoverage, runScripting];
 
 export function runTests() {
   let failed = false;
