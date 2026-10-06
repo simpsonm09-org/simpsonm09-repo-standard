@@ -32,8 +32,8 @@ Use `# platforms: windows` for a PowerShell-only script. The value is one word, 
 | Entry | Rule |
 | --- | --- |
 | `scripting/windows-shell` | the root `justfile` has a `set windows-shell` line |
-| `scripting/shell-ops` | a recipe body has no `&&`, `;`, `|`, redirection, `$VAR`, or `./` |
-| `scripting/interpreter` | a recipe body names no interpreter outside a `{{ ... }}` expression or a `mise exec`/`mise run` line |
+| `scripting/shell-ops` | a recipe body has no `&&`, `&`, `;`, `|`, redirection, `$VAR`, backtick substitution, `./`, or `.\` |
+| `scripting/interpreter` | a recipe body names no interpreter as its command word (a version suffix such as `python3.12` counts as `python`) outside a `{{ ... }}` expression or a `mise exec`/`mise run` line |
 | `scripting/twin-exists` | a recipe that routes on `os_family()` or `os()` points at scripts that exist |
 | `scripting/script-declared` | every `scripts/**/*.ps1` and `scripts/**/*.sh` is referenced by an op or recipe, or declares its platform |
 | `scripting/skill-recipe` | a non-vendored skill says `just <recipe>`, never a script path |

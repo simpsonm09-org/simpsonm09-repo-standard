@@ -66,18 +66,31 @@ function testWindowsShell(assert) {
 }
 
 function testShellOps(assert) {
-  const violations = ['echo a && echo b', 'echo a; echo b', 'echo a | cat', 'echo a > out', 'echo $HOME', 'node ./scripts/x.mjs'];
+  const violations = [
+    'echo a && echo b',
+    'echo a; echo b',
+    'echo a | cat',
+    'echo a > out',
+    'echo $HOME',
+    'node ./scripts/x.mjs',
+    'node a.mjs & node b.mjs',
+    'echo `date`',
+  ];
   for (const body of violations) {
     const files = { justfile: `${SHELL}\n# Bad.\nbad:\n    ${body}\n` };
     expectEntry(assert, `shell operator in "${body}"`, files, 'scripting/shell-ops');
   }
   expectClean(assert, 'portable recipe body', COMPLIANT);
+  expectClean(assert, 'a quoted flag value is not shell syntax', {
+    justfile: `${SHELL}\n# Run.\nrun:\n    node scripts/run.mjs --filter "a<b"\n`,
+  });
 }
 
 function testInterpreter(assert) {
   expectEntry(assert, 'bare bash', { justfile: `${SHELL}\n# Bad.\nbad:\n    bash scripts/x.sh\n` }, 'scripting/interpreter');
   expectEntry(assert, 'bare pwsh', { justfile: `${SHELL}\n# Bad.\nbad:\n    pwsh -File scripts/x.ps1\n` }, 'scripting/interpreter');
   expectEntry(assert, 'bare python', { justfile: `${SHELL}\n# Bad.\nbad:\n    python scripts/x.py\n` }, 'scripting/interpreter');
+  expectEntry(assert, 'a versioned python is still python', { justfile: `${SHELL}\n# Bad.\nbad:\n    python3.12 scripts/x.py\n` }, 'scripting/interpreter');
   const routed = {
     justfile: `${SHELL}\n# Route.\nrun:\n    {{ if os_family() == "windows" { "pwsh -File scripts/run.ps1" } else { "bash scripts/run.sh" } }}\n`,
     'scripts/run.ps1': 'Write-Output ok\n',
@@ -85,6 +98,9 @@ function testInterpreter(assert) {
   };
   expectClean(assert, 'interpreter inside a just expression', routed);
   expectClean(assert, 'interpreter behind mise exec', { justfile: `${SHELL}\n# Spec.\nspec:\n    mise exec -- python scripts/x.py\n` });
+  expectClean(assert, 'an interpreter used as a flag value is not the command', {
+    justfile: `${SHELL}\n# Generate.\ngen:\n    node scripts/gen.mjs --language python\n`,
+  });
 }
 
 function testTwinExists(assert) {
@@ -103,8 +119,18 @@ function testTwinExists(assert) {
 function testScriptDeclared(assert) {
   expectEntry(assert, 'orphan posix script', { ...COMPLIANT, 'scripts/orphan.sh': '#!/usr/bin/env bash\necho ok\n' }, 'scripting/script-declared');
   expectEntry(assert, 'orphan windows script', { ...COMPLIANT, 'scripts/orphan.ps1': 'Write-Output ok\n' }, 'scripting/script-declared');
+  expectEntry(assert, 'a posix script declaring windows', { ...COMPLIANT, 'scripts/orphan.sh': '# platforms: windows\n#!/usr/bin/env bash\necho ok\n' }, 'scripting/script-declared');
+  expectEntry(assert, 'a script named only in a comment', {
+    justfile: `${SHELL}\n# Run scripts/orphan.sh from here.\ndefault:\n    @just --list\n`,
+    'scripts/orphan.sh': '#!/usr/bin/env bash\necho ok\n',
+  }, 'scripting/script-declared');
   expectClean(assert, 'declared posix script', { ...COMPLIANT, 'scripts/orphan.sh': '# platforms: posix\n#!/usr/bin/env bash\necho ok\n' });
   expectClean(assert, 'declared windows script', { ...COMPLIANT, 'scripts/orphan.ps1': '# platforms: windows\nWrite-Output ok\n' });
+  expectClean(assert, 'script referenced by a recipe', {
+    justfile: `${SHELL}\n# Route.\nrun:\n    {{ if os_family() == "windows" { "pwsh -File scripts/run.ps1" } else { "bash scripts/run.sh" } }}\n`,
+    'scripts/run.ps1': 'Write-Output ok\n',
+    'scripts/run.sh': 'echo ok\n',
+  });
   expectClean(assert, 'script referenced by an op', {
     ...COMPLIANT,
     'ops.json': JSON.stringify({ operations: [{ id: 'run', kind: 'twin', windows: 'scripts/run.ps1', posix: 'scripts/run.sh' }] }),
@@ -128,6 +154,16 @@ function testSkillRecipe(assert) {
     ...COMPLIANT,
     '.opencode/skills/verify/SKILL.md': SKILL('Run `node .opencode/skills/verify/scripts/drive.mjs`.'),
   });
+  expectClean(assert, 'a skill-local driver named in short form is exempt', {
+    ...COMPLIANT,
+    '.opencode/skills/verify/SKILL.md': SKILL('Run `node scripts/drive.mjs`.'),
+    '.opencode/skills/verify/scripts/drive.mjs': 'export {};\n',
+  });
+  expectEntry(assert, 'a plugin skill naming a repo script is not exempt', {
+    ...COMPLIANT,
+    'skills/x/SKILL.md': SKILL('Run `scripts/Import-Secrets.ps1 -Apply`.'),
+    'scripts/Import-Secrets.ps1': 'Write-Output ok\n',
+  }, 'scripting/skill-recipe');
 }
 
 function testToolsRecipe(assert) {

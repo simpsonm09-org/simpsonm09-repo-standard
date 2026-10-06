@@ -7,7 +7,7 @@
 // Usage:
 //   node scripts/audit-fleet.mjs <repos-dir> [--full]
 
-import { readdirSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { checkScripting, checkStandard } from './check-standard.mjs';
 import { EXIT } from './lib/exit.mjs';
@@ -30,9 +30,11 @@ function parseArgs(argv) {
   return options;
 }
 
+// A repository has a root justfile. A workspace meta directory does not, so it
+// is skipped rather than reported as a failing repository.
 function childRepos(root) {
   return readdirSync(root, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
+    .filter((entry) => entry.isDirectory() && existsSync(join(root, entry.name, 'justfile')))
     .map((entry) => join(root, entry.name))
     .sort((a, b) => a.localeCompare(b));
 }

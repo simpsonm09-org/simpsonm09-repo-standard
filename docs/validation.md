@@ -1,8 +1,14 @@
 # Validation
 
-Every repository checks itself against the standard. There is no cross-repository
-audit and no organization-wide token. A repository runs one job from its own
-`ci.yml`, and the job reports whether the repository matches the standard.
+Every repository checks itself against the standard. A repository runs one job
+from its own `ci.yml`, and the job reports whether the repository matches the
+standard. There is no organization-wide token, and no repository audits another
+through the API.
+
+The standard also ships a local fleet audit. `scripts/audit-fleet.mjs` reads the
+sibling checkouts on disk and prints one matrix. It runs from a checkout of this
+repository, needs no token, and never runs in a consuming repository's CI. See
+[scripting.md](scripting.md).
 
 ## Run the checks
 
@@ -29,6 +35,7 @@ skip the API checks.
 | `dependabot` | `.github/dependabot.yml` declares version 2, a scheduled ecosystem, and no inline credential. |
 | `community` | The byte-identical community files match the pinned standard. |
 | `docs` | The [documentation layout](documentation.md) holds. |
+| `scripting` | Recipe bodies stay portable, scripts are declared or twinned, and non-vendored skills call `just <recipe>`. |
 | `settings` | The default branch is `main`, the description is set, and the owner topic is present. |
 | `ruleset` | A public repository carries `protect-main`. |
 
@@ -42,8 +49,9 @@ protection need admin on the repository. The merge methods need `contents: write
 The standard applies them once with `apply-settings` and does not audit them. See
 [github-settings.md](github-settings.md).
 
-A repository also cannot see another repository, so nothing checks a fork or a
-sibling. Each repository is responsible for itself.
+A repository also cannot see another repository through the API, so nothing
+checks a fork or a sibling in CI. Each repository is responsible for itself. The
+local fleet audit reads sibling checkouts on disk instead, outside CI.
 
 ## Exceptions
 

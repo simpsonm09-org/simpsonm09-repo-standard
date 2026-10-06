@@ -53,20 +53,25 @@ const MANIFEST_KEYS = new Set(['readme', 'features', 'diagrams', 'api']);
 const INTERPRETERS = new Set(['bash', 'pwsh', 'powershell', 'sh', 'cmd', 'python', 'python3']);
 const SHELL_OPERATORS = [
   { pattern: /&&/, label: 'shell operator &&' },
+  { pattern: /&/, label: 'shell operator &' },
   { pattern: /;/, label: 'shell operator ;' },
   { pattern: /\|/, label: 'shell operator |' },
   { pattern: /[<>]/, label: 'shell redirection' },
   { pattern: /\$[A-Za-z_{]/, label: 'shell variable expansion' },
+  { pattern: /`/, label: 'shell backtick substitution' },
   { pattern: /\.\//, label: 'relative ./ path' },
   { pattern: /\.\\/, label: 'relative .\\ path' },
 ];
 const DECLARED_SCRIPT_EXTENSIONS = ['.ps1', '.sh'];
+// Each pattern names the script path it matches so the checker can tell a
+// repository script from a skill-local asset. A pattern without a path (the
+// `pwsh -File` spelling) always flags.
 const SKILL_SCRIPT_PATTERNS = [
-  /(?<![\w./\\-])scripts[\\/][^\s`)"'<>]+\.(?:ps1|sh|py|mjs)\b/i,
-  /(?<![\w./\\-])windows[\\/][^\s`)"'<>]+\.ps1\b/i,
-  /(?<![\w./\\-])wsl[\\/][^\s`)"'<>]+\.sh\b/i,
-  /pwsh\s+-File\b/i,
-  /(?<![\w./\\-])bash\s+[^\s`)"'<>]+\.(?:sh|ps1|py|mjs)\b/i,
+  { pattern: /(?<![\w./\\-])(scripts[\\/][^\s`)"'<>]+\.(?:ps1|sh|py|mjs))\b/gi, path: 1 },
+  { pattern: /(?<![\w./\\-])(windows[\\/][^\s`)"'<>]+\.ps1)\b/gi, path: 1 },
+  { pattern: /(?<![\w./\\-])(wsl[\\/][^\s`)"'<>]+\.sh)\b/gi, path: 1 },
+  { pattern: /pwsh\s+-File\b/gi, path: null },
+  { pattern: /(?<![\w./\\-])bash\s+([^\s`)"'<>]+\.(?:sh|ps1|py|mjs))\b/gi, path: 1 },
 ];
 
 function readText(path) {
@@ -552,8 +557,11 @@ function checkWindowsShell(root, add) {
 }
 
 function checkShellOps(header, line, add) {
+  // A quoted segment is data, not shell syntax, so a flag value such as
+  // `--filter "a<b"` is not a redirection.
+  const scan = line.replace(/"[^"]*"|'[^']*'/g, ' ');
   for (const { pattern, label } of SHELL_OPERATORS) {
-    if (pattern.test(line)) {
+    if (pattern.test(scan)) {
       add('scripting/shell-ops', `recipe "${header}" uses ${label}: ${line}`);
       return;
     }
@@ -563,17 +571,29 @@ function checkShellOps(header, line, add) {
 function interpreterName(token) {
   const trimmed = token.replace(/^[^A-Za-z0-9]+/, '').replace(/[^A-Za-z0-9.]+$/, '');
   const base = trimmed.split(/[\\/]/).pop() ?? '';
-  return base.replace(/\.(exe|cmd|bat)$/i, '').toLowerCase();
+  const withoutExtension = base.replace(/\.(exe|cmd|bat)$/i, '');
+  return withoutExtension.replace(/\d+(?:\.\d+)*$/, '').toLowerCase();
+}
+
+// The command word is the first token, or the first token after a
+// `mise exec --` / `mise run` prefix. A flag value such as `--language python`
+// is not a command word, and a version suffix is dropped so `python3.12`
+// reads as `python`.
+function commandWord(line) {
+  const tokens = line.replace(/\{\{[\s\S]*?\}\}/g, ' ').trim().split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return { token: null, viaMise: false };
+  if (interpreterName(tokens[0]) !== 'mise') return { token: tokens[0], viaMise: false };
+  if (tokens[1] === 'exec' && tokens[2] === '--') return { token: tokens[3] ?? null, viaMise: true };
+  if (tokens[1] === 'run') return { token: tokens[2] ?? null, viaMise: true };
+  return { token: tokens[0], viaMise: false };
 }
 
 function checkInterpreter(header, line, add) {
-  if (/\bmise\s+(?:exec|run)\b/.test(line)) return;
-  for (const token of line.replace(/\{\{[\s\S]*?\}\}/g, ' ').split(/\s+/)) {
-    const name = interpreterName(token);
-    if (INTERPRETERS.has(name)) {
-      add('scripting/interpreter', `recipe "${header}" names interpreter "${name}": ${line}`);
-      return;
-    }
+  const { token, viaMise } = commandWord(line);
+  if (token === null || viaMise) return;
+  const name = interpreterName(token);
+  if (INTERPRETERS.has(name)) {
+    add('scripting/interpreter', `recipe "${header}" names interpreter "${name}": ${line}`);
   }
 }
 
@@ -624,9 +644,33 @@ function opScriptPaths(root) {
   return out;
 }
 
-function declaresPlatform(file) {
+function platformOf(file) {
+  return extensionOf(file) === '.ps1' ? 'windows' : 'posix';
+}
+
+// The declared platform is the one word after `# platforms:` in the first ten
+// lines, or null when the file declares nothing.
+function declaredPlatform(file) {
   const head = normalize(readText(file)).replace(/\r\n/g, '\n').split('\n').slice(0, 10);
-  return head.some((line) => /^\s*#\s*platforms:\s*(?:windows|posix)\b/i.test(line));
+  for (const line of head) {
+    const match = /^\s*#\s*platforms:\s*(windows|posix)\b/i.exec(line);
+    if (match) return match[1].toLowerCase();
+  }
+  return null;
+}
+
+// A reference is a whole token that equals the script path, on a non-comment
+// line. A path that appears only inside a comment or as a substring does not
+// declare the script.
+function referencedInText(text, rel) {
+  for (const line of text.split('\n')) {
+    if (/^\s*#/.test(line)) continue;
+    for (const raw of line.split(/\s+/)) {
+      const token = toPosix(raw.replace(/^\.\//, '')).replace(/^["'`]+|["'`]+$/g, '');
+      if (token === rel) return true;
+    }
+  }
+  return false;
 }
 
 // A script is reachable from an op manifest entry or from the justfile text.
@@ -635,8 +679,8 @@ function checkScriptsDeclared(root, text, add) {
   const referenced = new Set(opScriptPaths(root));
   for (const file of listFiles(join(root, 'scripts'), DECLARED_SCRIPT_EXTENSIONS)) {
     const rel = toPosix(relative(root, file));
-    if (referenced.has(rel) || text.includes(rel) || declaresPlatform(file)) continue;
-    add('scripting/script-declared', `${rel} is not referenced by an op or recipe and declares no "# platforms:" line`);
+    if (referenced.has(rel) || referencedInText(text, rel) || declaredPlatform(file) === platformOf(file)) continue;
+    add('scripting/script-declared', `${rel} is not referenced by an op or recipe and declares no matching "# platforms:" line`);
   }
 }
 
@@ -655,17 +699,27 @@ function isVendoredSkill(root, rel) {
   return rel.startsWith('skills/') && existsSync(join(root, 'pstack.lock.json'));
 }
 
+// A skill-local asset resolves under the skill's own directory and is not a
+// repository operation, so it is not a violation.
+function skillScriptOffender(text, dir) {
+  for (const { pattern, path } of SKILL_SCRIPT_PATTERNS) {
+    for (const match of text.matchAll(pattern)) {
+      const candidate = path === null ? null : match[path];
+      if (candidate && existsSync(join(dir, candidate))) continue;
+      return match[0].trim();
+    }
+  }
+  return null;
+}
+
 function checkSkillRecipes(root, add) {
   for (const file of skillFiles(root)) {
     const rel = toPosix(relative(root, file));
     if (isVendoredSkill(root, rel)) continue;
     const text = normalize(readText(file)).replace(/\r\n/g, '\n');
-    for (const pattern of SKILL_SCRIPT_PATTERNS) {
-      const match = pattern.exec(text);
-      if (match) {
-        add('scripting/skill-recipe', `${rel} names a script path (${match[0].trim()}); a skill calls "just <recipe>"`);
-        break;
-      }
+    const offender = skillScriptOffender(text, dirname(file));
+    if (offender) {
+      add('scripting/skill-recipe', `${rel} names a script path (${offender}); a skill calls "just <recipe>"`);
     }
   }
 }

@@ -41,7 +41,7 @@ Pass arguments in the POSIX spelling. `--apply` and a positional `<owner>/<repo>
 ## Author rules
 
 - Prefer a portable recipe. Split into per-platform scripts only when the logic needs the platform.
-- Call a portable executable. Do not put shell operators (`&&`, `;`, `|`), `$VAR`, or Unix-only commands in a recipe.
+- Call a portable executable. Do not put shell operators (`&&`, `&`, `;`, `|`), redirection, `$VAR`, backtick substitution, `./`, or `.\` in a recipe.
 - Put multi-step logic in a script under `scripts/` and call it from the recipe.
 - Keep the `set windows-shell` line at the top so a recipe behaves the same on Windows.
 
