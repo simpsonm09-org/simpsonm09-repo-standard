@@ -15,29 +15,29 @@ concurrency:
 jobs:
   lint:
     if: github.repository_owner == 'simpsonm09-org'
-    uses: simpsonm09-org/simpsonm09-repo-standard/.github/workflows/lint.yml@91cb73d9a028a8ee412e233275b2e9818a4c200e # repo-standard main
+    uses: simpsonm09-org/simpsonm09-repo-standard/.github/workflows/lint.yml@e7394ec10255c2f67c61878b873be579ee995ed5 # repo-standard main
   aislop:
     if: github.repository_owner == 'simpsonm09-org'
     permissions:
       contents: read
       security-events: write
-    uses: simpsonm09-org/simpsonm09-repo-standard/.github/workflows/aislop.yml@91cb73d9a028a8ee412e233275b2e9818a4c200e # repo-standard main
+    uses: simpsonm09-org/simpsonm09-repo-standard/.github/workflows/aislop.yml@e7394ec10255c2f67c61878b873be579ee995ed5 # repo-standard main
   security:
     if: github.repository_owner == 'simpsonm09-org'
     permissions:
       contents: read
       security-events: write
-    uses: simpsonm09-org/simpsonm09-repo-standard/.github/workflows/security.yml@91cb73d9a028a8ee412e233275b2e9818a4c200e # repo-standard main
+    uses: simpsonm09-org/simpsonm09-repo-standard/.github/workflows/security.yml@e7394ec10255c2f67c61878b873be579ee995ed5 # repo-standard main
   standard:
     if: github.repository_owner == 'simpsonm09-org'
     permissions:
       contents: read
-    uses: simpsonm09-org/simpsonm09-repo-standard/.github/workflows/standard.yml@91cb73d9a028a8ee412e233275b2e9818a4c200e # repo-standard main
+    uses: simpsonm09-org/simpsonm09-repo-standard/.github/workflows/standard.yml@e7394ec10255c2f67c61878b873be579ee995ed5 # repo-standard main
   coverage:
     if: github.repository_owner == 'simpsonm09-org'
     permissions:
       contents: read
-    uses: simpsonm09-org/simpsonm09-repo-standard/.github/workflows/coverage.yml@91cb73d9a028a8ee412e233275b2e9818a4c200e # repo-standard main
+    uses: simpsonm09-org/simpsonm09-repo-standard/.github/workflows/coverage.yml@e7394ec10255c2f67c61878b873be579ee995ed5 # repo-standard main
 
   # Required check. Every repository defines `just test`; replace the step below
   # with the repository test command when the generic task runner call is not enough.
