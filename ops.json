@@ -68,6 +68,12 @@
       "description": "Run the scripting conformance rule tests over fixtures."
     },
     {
+      "id": "test-env",
+      "kind": "portable",
+      "run": "node scripts/env.test.mjs",
+      "description": "Run the env convention rule tests over fixtures."
+    },
+    {
       "id": "verify",
       "kind": "portable",
       "run": "node scripts/verify.mjs",

@@ -15,7 +15,7 @@ sequenceDiagram
     participant GH as gh CLI
     Dev->>Repo: node scripts/check-repo.mjs .
     Repo->>Std: tree-local checks
-    Std-->>Repo: files, mise, ci, community, and docs gaps
+    Std-->>Repo: files, mise, ci, community, docs, scripting, and env gaps
     Repo->>GH: read this repository's settings, topics, and rulesets
     GH-->>Repo: repository metadata
     Repo->>Repo: apply docs/exceptions.json
