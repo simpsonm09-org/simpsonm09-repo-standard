@@ -7,7 +7,7 @@ repository audits another, and there is no organization-wide audit or token.
 ## `check-standard`
 
 [`../../scripts/check-standard.mjs`](../../scripts/check-standard.mjs) takes one
-repository path and prints a compact matrix of six tree-local groups.
+repository path and prints a compact matrix of eight tree-local groups.
 
 | Group | Checks |
 | --- | --- |
@@ -17,6 +17,8 @@ repository path and prints a compact matrix of six tree-local groups.
 | `dependabot` | `.github/dependabot.yml` declares version 2, a scheduled ecosystem, and no inline credential. |
 | `community` | The byte-identical community files match the pinned standard. |
 | `docs` | The [documentation layout](../documentation.md) holds. |
+| `scripting` | Recipe bodies stay portable, scripts are declared or twinned, and non-vendored skills call `just <recipe>`. |
+| `env` | A root `.worktreeinclude` lists the local files, each is ignored by `.gitignore`, and every listed path has a committed sibling `.example`. |
 
 The script exits `1` when any group has a gap. It never reads the exception file, so
 a single repository can be checked on its own.

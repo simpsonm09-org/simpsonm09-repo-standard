@@ -57,6 +57,8 @@ Dependabot has no shareable preset, so the file lives in each repository. The st
 
 Copy `.editorconfig`, `.gitattributes`, and `.gitignore` entries of interest. Mark generated files in `.gitattributes` with `linguist-generated` so Flint and GitHub both skip them.
 
+When `.gitignore` ignores a local `.env`, keep a committed sibling `.env.example`, list the local file in a root `.worktreeinclude`, and start from [`templates/.env.example`](../templates/.env.example) and [`templates/.worktreeinclude`](../templates/.worktreeinclude). A real `.env` is never committed and never deleted, and the `env` group checks that the example and the include stay in sync. See [`features/fleet-conformance.md`](features/fleet-conformance.md).
+
 ## 9. Add the documentation layout
 
 Copy [`templates/docs/`](../templates/docs/) into `docs/`, then replace the skeleton with the repository's own index, manifest, architecture page, and feature pages. The manifest declares which optional artifacts apply, including an OpenAPI or AsyncAPI document when the repository exposes a contract. See [`documentation.md`](documentation.md).

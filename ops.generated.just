@@ -47,6 +47,10 @@ test-patch-coverage:
 test-scripting:
     {{op}} run test-scripting
 
+# Run the env convention rule tests over fixtures.
+test-env:
+    {{op}} run test-env
+
 # Run the local CI mirror: lint, test, aislop, security, and secret scan.
 verify:
     {{op}} run verify
