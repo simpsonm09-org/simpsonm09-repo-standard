@@ -650,8 +650,11 @@ function opScriptPaths(root) {
   return out;
 }
 
-function platformOf(file) {
-  return extensionOf(file) === '.ps1' ? 'windows' : 'posix';
+// The platforms a script may declare. A PowerShell script is windows-only. A
+// bash script is portable (`posix`) by default, or specifically `linux` or
+// `macos` when it is not portable.
+function platformsOf(file) {
+  return extensionOf(file) === '.ps1' ? ['windows'] : ['posix', 'linux', 'macos'];
 }
 
 // The declared platform is the one word after `# platforms:` in the first ten
@@ -659,7 +662,7 @@ function platformOf(file) {
 function declaredPlatform(file) {
   const head = normalize(readText(file)).replace(/\r\n/g, '\n').split('\n').slice(0, 10);
   for (const line of head) {
-    const match = /^\s*#\s*platforms:\s*(windows|posix)\b/i.exec(line);
+    const match = /^\s*#\s*platforms:\s*(windows|posix|linux|macos)\b/i.exec(line);
     if (match) return match[1].toLowerCase();
   }
   return null;
@@ -685,7 +688,8 @@ function checkScriptsDeclared(root, text, add) {
   const referenced = new Set(opScriptPaths(root));
   for (const file of listFiles(join(root, 'scripts'), DECLARED_SCRIPT_EXTENSIONS)) {
     const rel = toPosix(relative(root, file));
-    if (referenced.has(rel) || referencedInText(text, rel) || declaredPlatform(file) === platformOf(file)) continue;
+    const declared = declaredPlatform(file);
+    if (referenced.has(rel) || referencedInText(text, rel) || (declared !== null && platformsOf(file).includes(declared))) continue;
     add('scripting/script-declared', `${rel} is not referenced by an op or recipe and declares no matching "# platforms:" line`);
   }
 }

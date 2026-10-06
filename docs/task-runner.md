@@ -26,6 +26,8 @@ A repository that calls the shared coverage workflow defines the `coverage` reci
 
 An operation whose logic must differ by platform is a twin. It has a bash version and a PowerShell version under `scripts/` and one recipe. See [`scripting.md`](scripting.md).
 
+A single-platform script declares its platform in a header comment within the first ten lines. The value is `windows`, `posix`, `linux`, or `macos`. A `.ps1` file declares `windows`; a `.sh` file declares `posix` when it is portable, or the more specific `linux` or `macos` when it is not.
+
 Call a twin the same way on every platform. Do not name the interpreter or the script file in the call.
 
 ```bash

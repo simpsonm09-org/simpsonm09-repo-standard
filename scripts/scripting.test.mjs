@@ -124,12 +124,15 @@ function testTwinExists(assert) {
 function testScriptDeclared(assert) {
   expectEntry(assert, 'orphan posix script', { ...COMPLIANT, 'scripts/orphan.sh': '#!/usr/bin/env bash\necho ok\n' }, 'scripting/script-declared');
   expectEntry(assert, 'orphan windows script', { ...COMPLIANT, 'scripts/orphan.ps1': 'Write-Output ok\n' }, 'scripting/script-declared');
-  expectEntry(assert, 'a posix script declaring windows', { ...COMPLIANT, 'scripts/orphan.sh': '# platforms: windows\n#!/usr/bin/env bash\necho ok\n' }, 'scripting/script-declared');
+  expectEntry(assert, 'a bash script declaring windows', { ...COMPLIANT, 'scripts/orphan.sh': '# platforms: windows\n#!/usr/bin/env bash\necho ok\n' }, 'scripting/script-declared');
+  expectEntry(assert, 'a PowerShell script declaring linux', { ...COMPLIANT, 'scripts/orphan.ps1': '# platforms: linux\nWrite-Output ok\n' }, 'scripting/script-declared');
   expectEntry(assert, 'a script named only in a comment', {
     justfile: `${SHELL}\n# Run scripts/orphan.sh from here.\ndefault:\n    @just --list\n`,
     'scripts/orphan.sh': '#!/usr/bin/env bash\necho ok\n',
   }, 'scripting/script-declared');
   expectClean(assert, 'declared posix script', { ...COMPLIANT, 'scripts/orphan.sh': '# platforms: posix\n#!/usr/bin/env bash\necho ok\n' });
+  expectClean(assert, 'declared linux script', { ...COMPLIANT, 'scripts/orphan.sh': '# platforms: linux\n#!/usr/bin/env bash\necho ok\n' });
+  expectClean(assert, 'declared macos script', { ...COMPLIANT, 'scripts/orphan.sh': '# platforms: macos\n#!/usr/bin/env bash\necho ok\n' });
   expectClean(assert, 'declared windows script', { ...COMPLIANT, 'scripts/orphan.ps1': '# platforms: windows\nWrite-Output ok\n' });
   expectClean(assert, 'script referenced by a recipe', {
     justfile: `${SHELL}\n# Route.\nrun:\n    {{ if os_family() == "windows" { "pwsh -File scripts/run.ps1" } else { "bash scripts/run.sh" } }}\n`,

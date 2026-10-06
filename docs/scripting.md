@@ -23,7 +23,7 @@ Most scripts are twins. When a script is legitimately single-platform, say so in
 # platforms: posix
 ```
 
-Use `# platforms: windows` for a PowerShell-only script. The value is one word, `windows` or `posix`. Do not add a sidecar file.
+Use `# platforms: windows` for a PowerShell-only script. The value is one word: `windows`, `posix`, `linux`, or `macos`. A `.ps1` file must declare `windows`. A `.sh` file declares `posix` when it is portable across macOS and Linux, or the more specific `linux` or `macos` when it is not. `posix` is the portable default. Do not add a sidecar file.
 
 ## Conformance
 
