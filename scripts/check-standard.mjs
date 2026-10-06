@@ -557,9 +557,15 @@ function checkWindowsShell(root, add) {
 }
 
 function checkShellOps(header, line, add) {
-  // A quoted segment is data, not shell syntax, so a flag value such as
-  // `--filter "a<b"` is not a redirection.
-  const scan = line.replace(/"[^"]*"|'[^']*'/g, ' ');
+  // A single-quoted segment is data and is dropped. Inside double quotes the
+  // shell still expands `$VAR` and backticks and still reads a relative `./`
+  // path, so only the operators inert there (`;`, `|`, `&`, `<`, `>`) are
+  // masked. A flag value such as `--filter "a<b"` is therefore not a
+  // redirection, while a double-quoted `$CONFIG` or backtick substitution is
+  // still scanned.
+  const scan = line.replace(/'[^']*'|"([^"]*)"/g, (_, double) =>
+    double === undefined ? ' ' : double.replace(/[;|&<>]/g, ' '),
+  );
   for (const { pattern, label } of SHELL_OPERATORS) {
     if (pattern.test(scan)) {
       add('scripting/shell-ops', `recipe "${header}" uses ${label}: ${line}`);
@@ -666,7 +672,7 @@ function referencedInText(text, rel) {
   for (const line of text.split('\n')) {
     if (/^\s*#/.test(line)) continue;
     for (const raw of line.split(/\s+/)) {
-      const token = toPosix(raw.replace(/^\.\//, '')).replace(/^["'`]+|["'`]+$/g, '');
+      const token = toPosix(raw.replace(/^["'`]+|["'`]+$/g, '').replace(/^\.\//, ''));
       if (token === rel) return true;
     }
   }

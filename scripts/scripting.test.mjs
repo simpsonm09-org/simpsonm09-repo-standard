@@ -75,6 +75,8 @@ function testShellOps(assert) {
     'node ./scripts/x.mjs',
     'node a.mjs & node b.mjs',
     'echo `date`',
+    'node x "$CONFIG"',
+    'echo "`date`"',
   ];
   for (const body of violations) {
     const files = { justfile: `${SHELL}\n# Bad.\nbad:\n    ${body}\n` };
@@ -83,6 +85,9 @@ function testShellOps(assert) {
   expectClean(assert, 'portable recipe body', COMPLIANT);
   expectClean(assert, 'a quoted flag value is not shell syntax', {
     justfile: `${SHELL}\n# Run.\nrun:\n    node scripts/run.mjs --filter "a<b"\n`,
+  });
+  expectClean(assert, 'a single-quoted segment is inert', {
+    justfile: `${SHELL}\n# Run.\nrun:\n    node scripts/run.mjs ';'\n`,
   });
 }
 
@@ -136,6 +141,11 @@ function testScriptDeclared(assert) {
     'ops.json': JSON.stringify({ operations: [{ id: 'run', kind: 'twin', windows: 'scripts/run.ps1', posix: 'scripts/run.sh' }] }),
     'scripts/run.ps1': 'Write-Output ok\n',
     'scripts/run.sh': 'echo ok\n',
+  });
+  expectClean(assert, 'a quoted relative script path declares it', {
+    ...COMPLIANT,
+    justfile: `${SHELL}\n# Path.\npath := "./scripts/orphan.sh"\n${DEFAULT}`,
+    'scripts/orphan.sh': '#!/usr/bin/env bash\necho ok\n',
   });
 }
 
