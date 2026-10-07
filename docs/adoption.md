@@ -8,7 +8,13 @@ Copy [`templates/caller-ci.yml`](../templates/caller-ci.yml) to `.github/workflo
 
 The `standard` job runs [`check-repo.mjs`](../scripts/check-repo.mjs) for the repository and applies [`exceptions.json`](exceptions.json) from the pinned standard. It checks the tree-local groups on the pull request. See [`features/fleet-conformance.md`](features/fleet-conformance.md).
 
-Pin the `uses:` references to a commit SHA of this repository rather than `@main` for a stable supply chain. The pin-update workflow reports when the pin falls behind.
+Pin the `uses:` references to a commit SHA of this repository rather than `@main` for a stable supply chain. The pin in [`templates/caller-ci.yml`](../templates/caller-ci.yml) is a last-known-good example. Set it to the standard's current `main` at copy time:
+
+```bash
+gh api repos/simpsonm09-org/simpsonm09-repo-standard/commits/main --jq .sha
+```
+
+The pin-update workflow reports when the pin falls behind.
 
 Run this workflow in the upstream repository. The fleet rule is that a personal fork runs no Actions, and the upstream repository runs the caller on pushes to `main` and on pull requests. Disable Actions on every personal fork, in its Settings under Actions and General, or with `gh api -X PUT repos/<owner>/<repo>/actions/permissions -F enabled=false`.
 
