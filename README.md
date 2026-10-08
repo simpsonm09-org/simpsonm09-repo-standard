@@ -16,7 +16,7 @@ The reusable repository standard for `simpsonm09-org`. It owns the shared CI, li
 - Bash and PowerShell versions of every operational script, with matching behavior.
 - A testing convention for the test job each repository adds to its caller workflow.
 - A generated-OpenAPI contract rule for the repositories that expose an API, with a checker that fails a hand-edited document.
-- Agent and skill templates for project-local OpenCode setup, with the plugin-versus-repository ownership rule. Shared skills reach OpenCode and Claude Code through plugins, not through this repository.
+- Agent and skill templates for repository-local setup, with the plugin-versus-repository ownership rule. Repo-local skills live in `.claude/skills/`, which both Claude Code and OpenCode read. Repo-local OpenCode agent profiles stay in `.opencode/agents/`. Shared skills reach both through plugins, not through this repository.
 - A root README convention with a skeleton, a documentation layout, and an MIT license policy.
 - Editor and git conventions, issue and pull request templates, and security policy.
 

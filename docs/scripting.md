@@ -37,6 +37,7 @@ Use `# platforms: windows` for a PowerShell-only script. The value is one word: 
 | `scripting/twin-exists` | a recipe that routes on `os_family()` or `os()` points at scripts that exist |
 | `scripting/script-declared` | every `scripts/**/*.ps1` and `scripts/**/*.sh` is referenced by an op or recipe, or declares its platform |
 | `scripting/skill-recipe` | a non-vendored skill says `just <recipe>`, never a script path |
+| `scripting/skill-duplicate` | a repo-local skill id is not in both `.claude/skills/` and `.opencode/skills/` |
 | `scripting/tools-check` | a repository with a `tools.yaml` has a `tools-check` recipe |
 
 Run the group on one repository with `just check-standard .`. Run it over the whole fleet with `just audit-fleet <repos-dir>`, which prints one matrix and exits non-zero when any repository fails. Vendored PStack skills are exempt.
