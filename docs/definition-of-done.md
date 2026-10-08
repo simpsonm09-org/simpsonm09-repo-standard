@@ -10,6 +10,6 @@ A change is done when every item below holds. The pull request checklist links h
 6. The docs match the change. Update the root README, `docs/`, and `docs/manifest.json` when the change alters behavior, a contract, or the layout.
 7. Generated files are marked `linguist-generated` in `.gitattributes`.
 8. A change that ships carries a release note. Update `CHANGELOG.md` when the repository publishes an artifact.
-9. Work a human reviews after stepping away carries a decision trail. See the `show-me-your-work` skill.
+9. Work a human reviews after stepping away carries a decision trail. See the `show-me-your-work` skill (`pstack:show-me-your-work` in Claude Code).
 
 A change is not done when a required check is red, when the only proof is that it compiles, or when a gap is excepted without a recorded reason.

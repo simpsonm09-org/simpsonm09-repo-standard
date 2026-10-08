@@ -16,7 +16,7 @@ The reusable repository standard for `simpsonm09-org`. It owns the shared CI, li
 - Bash and PowerShell versions of every operational script, with matching behavior.
 - A testing convention for the test job each repository adds to its caller workflow.
 - A generated-OpenAPI contract rule for the repositories that expose an API, with a checker that fails a hand-edited document.
-- Agent and skill templates for project-local OpenCode setup, with the plugin-versus-repository ownership rule.
+- Agent and skill templates for project-local OpenCode setup, with the plugin-versus-repository ownership rule. Shared skills reach OpenCode and Claude Code through plugins, not through this repository.
 - A root README convention with a skeleton, a documentation layout, and an MIT license policy.
 - Editor and git conventions, issue and pull request templates, and security policy.
 
@@ -55,4 +55,4 @@ MIT. See [`LICENSE`](LICENSE).
 ## Related repositories
 
 - [`repo-template`](https://github.com/simpsonm09-org/simpsonm09-repo-template) is the generated-repo starting point.
-- [`maxstack`](https://github.com/simpsonm09-org/simpsonm09-maxstack) composes the OpenCode plugin layers.
+- [`maxstack`](https://github.com/simpsonm09-org/simpsonm09-maxstack) composes the plugin layers for OpenCode and Claude Code.
