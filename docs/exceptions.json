@@ -19,13 +19,13 @@
       "date": "2026-10-04"
     },
     {
-      "repo": "simpsonm09-org/simpsonm09-org-opencode-plugin",
+      "repo": "simpsonm09-org/simpsonm09-org-ai-plugin",
       "checks": ["community/.aislop/config.yml"],
       "reason": "The aislop dependency audit is off because the transitive http-cache-semantics 4.2.0 carries CVE-2026-93748 with no fixed version, and the Trivy scan is the dependency gate. The divergence is documented in the file.",
       "date": "2026-10-04"
     },
     {
-      "repo": "simpsonm09-org/simpsonm09-personal-opencode-plugin",
+      "repo": "simpsonm09-org/simpsonm09-personal-ai-plugin",
       "checks": ["community/.aislop/config.yml"],
       "reason": "The aislop dependency audit is off because the transitive http-cache-semantics 4.2.0 carries CVE-2026-93748 with no fixed version, and the Trivy scan is the dependency gate. The divergence is documented in the file.",
       "date": "2026-10-04"
