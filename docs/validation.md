@@ -35,7 +35,7 @@ skip the API checks.
 | `dependabot` | `.github/dependabot.yml` declares version 2, a scheduled ecosystem, and no inline credential. |
 | `community` | The byte-identical community files match the pinned standard. |
 | `docs` | The [documentation layout](documentation.md) holds. |
-| `scripting` | Recipe bodies stay portable, scripts are declared or twinned, and non-vendored skills call `just <recipe>`. |
+| `scripting` | Recipe bodies stay portable, scripts are declared or twinned, non-vendored skills call `just <recipe>`, and a repo-local skill id is in one skill root. |
 | `env` | A root `.worktreeinclude` lists the local files, each is ignored by `.gitignore`, and every listed path has a committed sibling `.example`. |
 | `settings` | The default branch is `main`, the description is set, and the owner topic is present. |
 | `ruleset` | A public repository carries `protect-main`. |

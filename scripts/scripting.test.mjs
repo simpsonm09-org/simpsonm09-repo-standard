@@ -177,6 +177,37 @@ function testSkillRecipe(assert) {
     'skills/x/SKILL.md': SKILL('Run `scripts/Import-Secrets.ps1 -Apply`.'),
     'scripts/Import-Secrets.ps1': 'Write-Output ok\n',
   }, 'scripting/skill-recipe');
+  expectEntry(assert, 'a claude-local skill naming a repo script path', { ...COMPLIANT, '.claude/skills/x/SKILL.md': SKILL('Run `scripts/Import-Secrets.ps1 -Apply`.') }, 'scripting/skill-recipe');
+  expectClean(assert, 'a claude-local skill driver path is not a repo script', {
+    ...COMPLIANT,
+    '.claude/skills/verify/SKILL.md': SKILL('Run `node .claude/skills/verify/scripts/drive.mjs`.'),
+  });
+  expectClean(assert, 'a claude-local skill driver named in short form is exempt', {
+    ...COMPLIANT,
+    '.claude/skills/verify/SKILL.md': SKILL('Run `node scripts/drive.mjs`.'),
+    '.claude/skills/verify/scripts/drive.mjs': 'export {};\n',
+  });
+}
+
+function testSkillIds(assert) {
+  expectEntry(assert, 'one skill id in both repo-local roots', {
+    ...COMPLIANT,
+    '.claude/skills/verify/SKILL.md': SKILL('Run `just verify`.'),
+    '.opencode/skills/verify/SKILL.md': SKILL('Run `just verify`.'),
+  }, 'scripting/skill-duplicate');
+  expectClean(assert, 'one skill id in .claude/skills only', {
+    ...COMPLIANT,
+    '.claude/skills/verify/SKILL.md': SKILL('Run `just verify`.'),
+  });
+  expectClean(assert, 'one skill id in .opencode/skills only', {
+    ...COMPLIANT,
+    '.opencode/skills/verify/SKILL.md': SKILL('Run `just verify`.'),
+  });
+  expectClean(assert, 'different skill ids in each repo-local root', {
+    ...COMPLIANT,
+    '.claude/skills/verify/SKILL.md': SKILL('Run `just verify`.'),
+    '.opencode/skills/lint/SKILL.md': SKILL('Run `just lint`.'),
+  });
 }
 
 function testToolsRecipe(assert) {
@@ -198,6 +229,7 @@ export function runTest() {
     testTwinExists(assert);
     testScriptDeclared(assert);
     testSkillRecipe(assert);
+    testSkillIds(assert);
     testToolsRecipe(assert);
     process.stdout.write(`scripting.test: ok (${total()} assertions)\n`);
     return 0;

@@ -71,7 +71,7 @@ Copy [`templates/docs/`](../templates/docs/) into `docs/`, then replace the skel
 
 ## 10. Add agent and skill files
 
-Copy [`templates/AGENTS.md`](../templates/AGENTS.md) when the repository has repo-specific facts. Do not add a `CLAUDE.md`: Claude Code reads `AGENTS.md` when there is none. Copy [`templates/agents/`](../templates/agents/) into `.opencode/agents/` and [`templates/skills/`](../templates/skills/) into `.opencode/skills/` only when the repository ships project-local OpenCode setup. Those templates are OpenCode format, and Claude Code does not read `.opencode/`. General best practices and integration come from the plugins, which both harnesses load; the repository holds only its own facts. See [`agents-and-skills.md`](agents-and-skills.md).
+Copy [`templates/AGENTS.md`](../templates/AGENTS.md) when the repository has repo-specific facts. Do not add a `CLAUDE.md`: Claude Code reads `AGENTS.md` when there is none. Copy [`templates/skills/example-skill/`](../templates/skills/example-skill/) to `.claude/skills/<id>/`, renamed to the skill id, for each repo-specific skill. Claude Code and OpenCode both read that location. Copy [`templates/agents/`](../templates/agents/) into `.opencode/agents/` only when the repository needs a repo-specific OpenCode agent profile. Those templates are OpenCode format, and Claude Code does not read them. General best practices and integration come from the plugins, which both harnesses load; the repository holds only its own facts. See [`agents-and-skills.md`](agents-and-skills.md).
 
 ## 11. Add community files
 

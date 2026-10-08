@@ -202,12 +202,36 @@ function checkScriptsDeclared(root, text, add) {
   }
 }
 
+// Repo-local skills live in .claude/skills/<id>/SKILL.md, which Claude Code and
+// OpenCode both read. .opencode/skills/ is the old location and stays scanned
+// until its repository moves.
+const REPO_SKILL_DIRS = [['.claude', 'skills'], ['.opencode', 'skills']];
+
 function skillFiles(root) {
   const out = listFiles(join(root, 'skills'), ['.md']).filter((file) => basename(file) === 'SKILL.md');
-  for (const file of listFiles(join(root, '.opencode', 'skills'), ['.md'])) {
-    if (basename(file) === 'SKILL.md') out.push(file);
+  for (const parts of REPO_SKILL_DIRS) {
+    for (const file of listFiles(join(root, ...parts), ['.md'])) {
+      if (basename(file) === 'SKILL.md') out.push(file);
+    }
   }
   return out;
+}
+
+function repoSkillIds(dir) {
+  return listFiles(dir, ['.md'])
+    .filter((file) => basename(file) === 'SKILL.md')
+    .map((file) => toPosix(relative(dir, dirname(file))));
+}
+
+// OpenCode loads a skill from both roots, so one id in both loads twice. Claude
+// Code loads only .claude/skills/, so the two harnesses would see different skills.
+function checkSkillIds(root, add) {
+  const [claude, opencode] = REPO_SKILL_DIRS.map((parts) => repoSkillIds(join(root, ...parts)));
+  for (const id of claude) {
+    if (opencode.includes(id)) {
+      add('scripting/skill-duplicate', `skill ${id} is in both .claude/skills and .opencode/skills; keep it in .claude/skills only`);
+    }
+  }
 }
 
 // The PStack skill tree is vendored: a repository that pins it carries a
@@ -261,5 +285,6 @@ export function checkScripting(root, add) {
   checkTwinExists(repoRoot, bodies, add);
   checkScriptsDeclared(repoRoot, text, add);
   checkSkillRecipes(repoRoot, add);
+  checkSkillIds(repoRoot, add);
   checkToolsRecipe(repoRoot, text, add);
 }
