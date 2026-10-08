@@ -183,9 +183,39 @@ The app id and key come from `AGENT_APP_ID` and `AGENT_APP_PRIVATE_KEY`, with a
 fallback to the user config directory for development. The token is printed to
 stdout. Never log it, and never write it to a file.
 
+## The agent-side gates
+
+The push guard is a git hook, so it runs for a `git push` from a clone that has it
+installed, unless the push skips hooks. The agent-side gates cover the shell commands an
+AI agent runs. The org plugin ships both gates. Both take their decision from the
+resolver, so a level means the same thing in each. They act only in a fleet repository,
+a clone under `projects\repos` or a worktree of one. Any other path is not gated.
+
+- **OpenCode** rewrites a command the level does not allow in its shell hook. An allowed
+  `gh` command gets the App token for its repository.
+- **Claude Code** denies a command the level does not allow, in a `PreToolUse` hook on
+  the `Bash` and `PowerShell` tools. An allowed `gh` command in `Bash` runs through a
+  launcher that mints its token. An allowed `gh` write asks first, and a read runs without
+  a prompt. A `SessionStart` hook states the repository's level.
+
+The gate reads only the first command, and it has other limits. The main ones are below.
+The full list is in the org plugin's README, under Known limits.
+
+- A chained command is decided by its first command. `cd x && gh pr merge 1` is decided
+  by `cd`.
+- The gate does not read what a script or another program runs.
+- Only the word `gh` is recognised. `gh.exe` and a full path to `gh` get no token and no
+  launcher.
+- The classifier maps only `gh pr merge`, `gh pr create`, pushes, and `gh api` writes.
+  Any other command is allowed at every level. At `propose`, the resolver allows
+  `gh repo delete`, `gh secret set`, `gh pr comment`, `gh release create`, and
+  `gh workflow run`. OpenCode runs them without a prompt, and Claude Code asks first.
+- The Claude hook fails open when Claude Code's own timeout ends it, and it does not run
+  when `node` is not on the hook shell's `PATH`.
+
 ## What this does not do
 
-The resolver and the hook are a guardrail, not a boundary. The agent still runs on
-the maintainer's credential, so an agent that bypasses the hook is not stopped. The
-boundary is the agent identity above, with the OpenCode gate that denies merges and
-API writes. Both are tracked in the catalog roadmap.
+The resolver and the hook are a guardrail, not a boundary. Any command the gate does not
+rewrite runs under the maintainer's own login, so an agent that bypasses the hook is not
+stopped. A process running as the same user can also reach the token broker. The
+boundary is the agent identity above, which the catalog roadmap tracks.
