@@ -12,6 +12,12 @@ This document defines the branch model and the protection rules for repositories
 
 A pull request against `main` runs the shared checks from the repository. The checks are lint, aislop, security, standard, and coverage.
 
+### Where a pull request may go
+
+Open a pull request, issue, or comment only on a repository owned by `simpsonm09` or `simpsonm09-org`, the owners of the personal and organization plugins. Never open one automatically against any other owner, including the project a fork came from. A contribution to a repository we do not own needs the maintainer's review first. `gh pr create` targets a fork's parent by default, so pass `-R <owner>/<repo>` with an owned repository, and push only to `origin`.
+
+Merge through the rulesets below. Use an administrator merge only on an owned repository, only when the maintainer grants it for the current session, and only after every check on the pull request's head is green.
+
 ## Protection rules
 
 Two rulesets live in [`../rulesets/`](../rulesets).
