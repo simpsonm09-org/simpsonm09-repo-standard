@@ -26,7 +26,7 @@ This directory holds the repository documentation. Start here, then read the gui
 
 - [Agents and skills](agents-and-skills.md) covers where agents and skills come from in each harness, and the repo-local skill location in `.claude/skills/`.
 - [Fleet conformance](features/fleet-conformance.md) describes the two checkers end to end.
-- [Agent access](features/agent-access.md) resolves a repository's agent level, guards pushes, and gates agent shell commands in OpenCode and Claude Code.
+- [Agent access](features/agent-access.md) resolves a repository's agent level, guards pushes, and gates agent shell commands in OpenCode, Claude Code, GitHub Copilot CLI, and Pi.
 
 ## Conventions
 
