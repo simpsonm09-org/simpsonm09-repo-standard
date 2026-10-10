@@ -53,6 +53,21 @@ function splitTop(toks, s, e) {
   return out.filter(([a, b]) => b > a);
 }
 
+// The [imported, local] names of one specifier in toks[a..b): `a`, `b as c`, `b: c`, or `type b`.
+function specifierNames(toks, a, b) {
+  const i = isW(toks[a], 'type') && b - a > 1 && toks[a + 1].type === 'id' ? a + 1 : a;
+  const imported = nameOf(toks[i]);
+  const aliased = i + 2 < b && (isW(toks[i + 1], 'as') || isP(toks[i + 1], ':'));
+  return { imported, local: aliased ? nameOf(toks[i + 2]) : imported };
+}
+
+// The `import` keyword that opens the statement holding toks[from], or -1 when a `;` or an `export` comes first.
+function importKeywordBefore(toks, from) {
+  let start = from;
+  while (start >= 0 && !isW(toks[start], 'import') && !isW(toks[start], 'export') && !isP(toks[start], ';')) start -= 1;
+  return isW(toks[start], 'import') ? start : -1;
+}
+
 // `modules` holds the local names of the whole module. `fns` maps a local name to its function.
 function bindings(toks) {
   const modules = new Set();
@@ -61,9 +76,7 @@ function bindings(toks) {
   // The inside of a braced import or destructuring pattern: `a`, `b as c`, or `b: c`.
   const named = (s, e) => {
     for (const [a, b] of splitTop(toks, s, e)) {
-      const i = isW(toks[a], 'type') && b - a > 1 && toks[a + 1].type === 'id' ? a + 1 : a;
-      const imported = nameOf(toks[i]);
-      const local = i + 2 < b && (isW(toks[i + 1], 'as') || isP(toks[i + 1], ':')) ? nameOf(toks[i + 2]) : imported;
+      const { imported, local } = specifierNames(toks, a, b);
       if (imported === 'default') modules.add(local);
       else if (CALLS.has(imported)) fns.set(local, imported);
     }
@@ -71,9 +84,8 @@ function bindings(toks) {
 
   // The clause of `import <clause> from`, which runs from the `import` keyword to `from`.
   const importClause = (from) => {
-    let start = from;
-    while (start >= 0 && !isW(toks[start], 'import') && !isW(toks[start], 'export') && !isP(toks[start], ';')) start -= 1;
-    if (!isW(toks[start], 'import')) return;
+    const start = importKeywordBefore(toks, from);
+    if (start < 0) return;
     for (let i = start + 1; i < from; i += 1) {
       if (isP(toks[i], '{')) {
         named(i + 1, pair(toks, i));
@@ -119,19 +131,29 @@ function memberCallAt(toks, at) {
   return null;
 }
 
+// The calls through one identifier at toks[k]: a bound function, or a member of a bound module.
+function addIdentifierCalls(toks, k, { modules, fns }, add) {
+  const name = toks[k].value;
+  if (fns.has(name) && isP(toks[k + 1], '(')) add(fns.get(name), k, k + 1);
+  const member = modules.has(name) ? memberCallAt(toks, k + 1) : null;
+  if (member) add(member.fn, k, member.open);
+}
+
+// The call in `require('node:child_process').spawnSync(`, read from the module string at toks[k].
+function addRequiredModuleCall(toks, k, add) {
+  const t = toks[k];
+  if (t.type !== 'str' || !MODULES.has(nameOf(t)) || !isP(toks[k - 1], '(') || !isP(toks[k + 1], ')') || !isKeyword(toks[k - 2])) return;
+  const member = memberCallAt(toks, k + 2);
+  if (member) add(member.fn, k - 2, member.open);
+}
+
 // Every call into a bound name, as { fn, name, open, close }. `name` is the token the line is read from.
-function findCalls(toks, { modules, fns }) {
+function findCalls(toks, bound) {
   const calls = [];
   const add = (fn, name, open) => calls.push({ fn, name, open, close: pair(toks, open) });
   toks.forEach((t, k) => {
-    if (t.type === 'id' && !isP(toks[k - 1], '.') && !isW(toks[k - 1], 'function')) {
-      if (fns.has(t.value) && isP(toks[k + 1], '(')) add(fns.get(t.value), k, k + 1);
-      const member = modules.has(t.value) ? memberCallAt(toks, k + 1) : null;
-      if (member) add(member.fn, k, member.open);
-    } else if (t.type === 'str' && MODULES.has(nameOf(t)) && isP(toks[k - 1], '(') && isP(toks[k + 1], ')') && isKeyword(toks[k - 2])) {
-      const member = memberCallAt(toks, k + 2);
-      if (member) add(member.fn, k - 2, member.open);
-    }
+    if (t.type === 'id' && !isP(toks[k - 1], '.') && !isW(toks[k - 1], 'function')) addIdentifierCalls(toks, k, bound, add);
+    else addRequiredModuleCall(toks, k, add);
   });
   return calls;
 }
