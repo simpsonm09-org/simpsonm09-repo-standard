@@ -236,7 +236,7 @@ function checkSkillIds(root, add) {
 
 // The PStack skill tree is vendored: a repository that pins it carries a
 // pstack.lock.json at the root, and its skills/ are byte-identical upstream.
-function isVendoredSkill(root, rel) {
+export function isVendoredSkill(root, rel) {
   if (rel.startsWith('vendor/')) return true;
   return rel.startsWith('skills/') && existsSync(join(root, 'pstack.lock.json'));
 }

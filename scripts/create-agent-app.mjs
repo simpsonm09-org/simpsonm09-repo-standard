@@ -75,7 +75,7 @@ function openBrowser(url) {
     : process.platform === 'darwin'
       ? `open "${url}"`
       : `xdg-open "${url}"`;
-  exec(command, () => {});
+  exec(command, { windowsHide: true }, () => {});
 }
 
 function createUrl(org, state) {

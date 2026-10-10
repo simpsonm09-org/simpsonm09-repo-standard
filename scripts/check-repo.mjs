@@ -8,7 +8,7 @@ import { loadExceptions, findException } from './lib/exceptions.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const STANDARD_ROOT = resolve(HERE, '..');
-const GROUPS = ['files', 'mise', 'ci', 'dependabot', 'community', 'docs', 'scripting', 'env', 'settings', 'ruleset'];
+const GROUPS = ['files', 'mise', 'ci', 'dependabot', 'community', 'docs', 'scripting', 'env', 'subprocess', 'settings', 'ruleset'];
 
 const USAGE = `usage: node scripts/check-repo.mjs [repo-path] [options]
 

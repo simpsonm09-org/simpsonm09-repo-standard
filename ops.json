@@ -68,6 +68,12 @@
       "description": "Run the scripting conformance rule tests over fixtures."
     },
     {
+      "id": "test-subprocess",
+      "kind": "portable",
+      "run": "node scripts/subprocess.test.mjs",
+      "description": "Run the subprocess windowsHide rule tests over fixtures and the check-standard and check-repo matrices."
+    },
+    {
       "id": "test-env",
       "kind": "portable",
       "run": "node scripts/env.test.mjs",

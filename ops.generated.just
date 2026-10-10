@@ -47,6 +47,10 @@ test-patch-coverage:
 test-scripting:
     {{op}} run test-scripting
 
+# Run the subprocess windowsHide rule tests over fixtures and the check-standard and check-repo matrices.
+test-subprocess:
+    {{op}} run test-subprocess
+
 # Run the env convention rule tests over fixtures.
 test-env:
     {{op}} run test-env

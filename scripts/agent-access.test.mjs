@@ -133,7 +133,7 @@ function testHook(assert) {
   try {
     const clone = join(base, 'fixture-clone');
     mkdirSync(clone, { recursive: true });
-    const init = spawnSync('git', ['init', '-q', clone], { encoding: 'utf8' });
+    const init = spawnSync('git', ['init', '-q', clone], { windowsHide: true, encoding: 'utf8' });
     assert(init.status === 0, `hook fixture: git init succeeds (${(init.stderr ?? '').trim()})`);
     const hook = join(clone, '.git', 'hooks', 'pre-push');
     writeFileSync(hook, readFileSync(HOOK_TEMPLATE));
@@ -162,7 +162,7 @@ function testHook(assert) {
     for (const { name, ref, url, exit } of cases) {
       const zero = '0'.repeat(40);
       const stdin = `${ref} ${zero} ${ref} ${zero}\n`;
-      const result = spawnSync(shell, [hook, 'origin', url], { cwd: clone, input: stdin, encoding: 'utf8' });
+      const result = spawnSync(shell, [hook, 'origin', url], { windowsHide: true, cwd: clone, input: stdin, encoding: 'utf8' });
       assert(
         result.status === exit,
         `hook: ${name} exits ${exit}, got ${result.status} (${(result.stderr ?? '').trim()})`,
@@ -177,7 +177,7 @@ function testHook(assert) {
 // The process.exit edges in main() cannot be imported, so every CLI path is
 // driven through a real subprocess.
 function runResolver(extra) {
-  const result = spawnSync(process.execPath, [RESOLVER, ...extra], { encoding: 'utf8' });
+  const result = spawnSync(process.execPath, [RESOLVER, ...extra], { windowsHide: true, encoding: 'utf8' });
   return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
 }
 

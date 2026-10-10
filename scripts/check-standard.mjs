@@ -6,6 +6,7 @@ import { EXIT } from './lib/exit.mjs';
 import { isMain } from './lib/proc.mjs';
 import { checkScripting } from './lib/scripting.mjs';
 import { checkEnv } from './lib/env.mjs';
+import { checkSubprocess } from './lib/subprocess.mjs';
 import { checkDocs, hasCoverageRecipe } from './lib/docs.mjs';
 import { normalize, readText } from './lib/tree.mjs';
 
@@ -47,7 +48,7 @@ export const COMMUNITY_PATHS = [
 const SHARED_JOBS = ['lint', 'aislop', 'security'];
 const STANDARD_REPO = 'simpsonm09-org/simpsonm09-repo-standard';
 const SHA_PATTERN = /^[0-9a-fA-F]{40}$/;
-const GROUPS = ['files', 'mise', 'ci', 'dependabot', 'community', 'docs', 'scripting', 'env'];
+const GROUPS = ['files', 'mise', 'ci', 'dependabot', 'community', 'docs', 'scripting', 'env', 'subprocess'];
 
 function groupOf(id) {
   const slash = id.indexOf('/');
@@ -241,6 +242,7 @@ export function checkStandard(root) {
   checkDocs(repoRoot, add);
   checkScripting(repoRoot, add);
   checkEnv(repoRoot, add);
+  checkSubprocess(repoRoot, add);
   return { root: repoRoot, gaps };
 }
 

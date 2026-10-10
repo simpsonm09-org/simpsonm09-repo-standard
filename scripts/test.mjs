@@ -11,8 +11,9 @@ import { runTest as runAgentAccess } from './agent-access.test.mjs';
 import { runTest as runEnv } from './env.test.mjs';
 import { runTest as runPatchCoverage } from './patch-coverage.test.mjs';
 import { runTest as runScripting } from './scripting.test.mjs';
+import { runTest as runSubprocess } from './subprocess.test.mjs';
 
-const SUITES = [runAgentAccess, runPatchCoverage, runScripting, runEnv];
+const SUITES = [runAgentAccess, runPatchCoverage, runScripting, runEnv, runSubprocess];
 
 export function runTests() {
   let failed = false;
