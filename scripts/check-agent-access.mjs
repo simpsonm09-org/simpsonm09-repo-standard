@@ -87,7 +87,7 @@ export function compare(repo, level, ruleset, appId) {
 }
 
 function ghJson(org, repo, path) {
-  const out = execFileSync('gh', ['api', `repos/${org}/${repo}/${path}`], { encoding: 'utf8' });
+  const out = execFileSync('gh', ['api', `repos/${org}/${repo}/${path}`], { windowsHide: true, encoding: 'utf8' });
   return JSON.parse(out);
 }
 

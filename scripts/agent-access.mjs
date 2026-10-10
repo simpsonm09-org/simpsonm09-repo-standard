@@ -54,6 +54,7 @@ export function loadCommittedCatalog(dir = CATALOG_DIR) {
   for (const ref of ['upstream/main', 'main']) {
     try {
       const out = execFileSync('git', ['-C', dir, 'show', `${ref}:repos.json`], {
+        windowsHide: true,
         encoding: 'utf8',
         stdio: ['ignore', 'pipe', 'ignore'],
       });

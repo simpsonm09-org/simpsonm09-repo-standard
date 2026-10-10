@@ -115,7 +115,7 @@ function applyRecordLine(record, line) {
 function changedLines(base) {
   let diff;
   try {
-    diff = execFileSync('git', ['diff', '--unified=0', `${base}...HEAD`], { encoding: 'utf8' });
+    diff = execFileSync('git', ['diff', '--unified=0', `${base}...HEAD`], { windowsHide: true, encoding: 'utf8' });
   } catch {
     return new Map();
   }

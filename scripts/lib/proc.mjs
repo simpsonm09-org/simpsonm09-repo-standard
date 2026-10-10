@@ -37,10 +37,11 @@ function spawnProcess(command, args, options) {
     const line = [command, ...args].join(' ');
     return spawnSync(process.env.ComSpec ?? 'cmd.exe', ['/d', '/s', '/c', `"${line}"`], {
       ...options,
+      windowsHide: true,
       windowsVerbatimArguments: true,
     });
   }
-  return spawnSync(resolved ?? command, args, { ...options, shell: false });
+  return spawnSync(resolved ?? command, args, { ...options, windowsHide: true, shell: false });
 }
 
 export function run(command, args = [], options = {}) {
