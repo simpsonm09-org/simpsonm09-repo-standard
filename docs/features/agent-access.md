@@ -210,8 +210,9 @@ a clone under `projects\repos` or a worktree of one. Any other path is not gated
 
 All adapters decide from the first command only. They do not inspect scripts or later
 commands in a chain. Unclassified commands can pass, and the adapters differ in failure
-handling, prompting, and shell coverage. The plugin README's [Known limits section](https://github.com/simpsonm09-org/simpsonm09-org-ai-plugin#known-limits)
-has the complete shared and harness-specific list, including behavior that has not been
+handling, prompting, and shell coverage. The plugin README's [Known limits](https://github.com/simpsonm09-org/simpsonm09-org-ai-plugin#known-limits)
+and [Known limits (Pi)](https://github.com/simpsonm09-org/simpsonm09-org-ai-plugin#known-limits-pi)
+sections have the complete shared and harness-specific list, including behavior that has not been
 measured live.
 
 The Copilot hook must keep the native camelCase event keys. PascalCase keys do not tell
@@ -228,6 +229,7 @@ On Windows, Bash token launches require Git Bash. Copilot's PowerShell launches 
 PowerShell. The plugin also needs Node and Git, plus
 the local repo-standard resolver/catalog. Tokenized `gh` calls require broker credentials and a
 successful token mint. See the plugin README's [Known limits](https://github.com/simpsonm09-org/simpsonm09-org-ai-plugin#known-limits)
+and [Known limits (Pi)](https://github.com/simpsonm09-org/simpsonm09-org-ai-plugin#known-limits-pi)
 for the precise cases and remaining limits.
 
 ## What this does not do
