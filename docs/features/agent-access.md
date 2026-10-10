@@ -186,32 +186,46 @@ stdout. Never log it, and never write it to a file.
 ## The agent-side gates
 
 The push guard is a git hook, so it runs for a `git push` from a clone that has it
-installed, unless the push skips hooks. The agent-side gates cover the shell commands an
-AI agent runs. The org plugin ships both gates. Both take their decision from the
-resolver, so a level means the same thing in each. They act only in a fleet repository,
-a clone under `projects\repos` or a worktree of one. Any other path is not gated.
+installed, unless the push skips hooks. The org plugin ships agent-side gates for
+OpenCode, Claude Code, GitHub Copilot CLI, and Pi. All four use the shared resolver and
+gate decision, so a level means the same thing in each. They act only in a fleet repository,
+a clone under `projects\repos` or a worktree of one. Any other path is not gated. See the org plugin's [gate overview](https://github.com/simpsonm09-org/simpsonm09-org-ai-plugin#the-agent-access-gate).
 
-- **OpenCode** rewrites a command the level does not allow in its shell hook. An allowed
-  `gh` command gets the App token for its repository.
-- **Claude Code** denies a command the level does not allow, in a `PreToolUse` hook on
-  the `Bash` and `PowerShell` tools. An allowed `gh` command in `Bash` runs through a
-  launcher that mints its token. An allowed `gh` write asks first, and a read runs without
-  a prompt. A `SessionStart` hook states the repository's level.
+- **OpenCode** calls the gate in its `create.before` shell hook. It rewrites denied
+  commands to a shell-specific error and sets `GH_TOKEN` for an allowed `gh` command.
+- **Claude Code** uses `PreToolUse` for Bash and PowerShell. It denies disallowed calls
+  and rewrites allowed Bash `gh` calls through the token launcher. Read-only `gh` calls
+  run without a prompt; other allowed `gh` calls ask first. `gh` in PowerShell is denied
+  with a hint to use Bash. A `SessionStart` hook states the repository's level.
+- **GitHub Copilot CLI** adapts its native hook payload to the Claude decision and maps
+  command rewrites to `modifiedArgs`. It supports Bash and PowerShell. Allowed writes ask
+  first unless the hook process has `AGENT_ACCESS_COPILOT_ASK=allow`.
+- **Pi** gates Bash calls through its `tool_call` extension. Denials block the call, and
+  allowed `gh` calls use the token launcher. Read-only calls need no prompt; other allowed
+  calls ask when a prompt is available and block if no one can answer. `AGENT_ACCESS_PI_ASK=allow`
+  skips that prompt in RPC or no-prompt sessions. For child agents to load the gate, install
+  the package in Pi's saved `packages` list.
 
-The gate reads only the first command, and it has other limits. The main ones are below.
-The full list is in the org plugin's README, under Known limits.
+All adapters decide from the first command only. They do not inspect scripts or later
+commands in a chain. Unclassified commands can pass, and the adapters differ in failure
+handling, prompting, and shell coverage. The plugin README's [Known limits section](https://github.com/simpsonm09-org/simpsonm09-org-ai-plugin#known-limits)
+has the complete shared and harness-specific list, including behavior that has not been
+measured live.
 
-- A chained command is decided by its first command. `cd x && gh pr merge 1` is decided
-  by `cd`.
-- The gate does not read what a script or another program runs.
-- Only the word `gh` is recognised. `gh.exe` and a full path to `gh` get no token and no
-  launcher.
-- The classifier maps only `gh pr merge`, `gh pr create`, pushes, and `gh api` writes.
-  Any other command is allowed at every level. At `propose`, the resolver allows
-  `gh repo delete`, `gh secret set`, `gh pr comment`, `gh release create`, and
-  `gh workflow run`. OpenCode runs them without a prompt, and Claude Code asks first.
-- The Claude hook fails open when Claude Code's own timeout ends it, and it does not run
-  when `node` is not on the hook shell's `PATH`.
+The Copilot hook must keep the native camelCase event keys. PascalCase keys do not tell
+the adapter which shell dialect is in use, so it denies the call. For more detail on the
+four adapter protocols, see the org plugin README's [gate overview](https://github.com/simpsonm09-org/simpsonm09-org-ai-plugin#the-agent-access-gate),
+the [Copilot build](https://github.com/simpsonm09-org/simpsonm09-org-ai-plugin#github-copilot-cli-build),
+and the [Pi build](https://github.com/simpsonm09-org/simpsonm09-org-ai-plugin#pi-coding-agent-build).
+
+The Claude hook can fail open if Claude Code kills it at its outer timeout or cannot find
+`node`; its internal failures deny. Copilot's timeout behavior and its PowerShell rewrite
+have not been measured live. Pi's gate has no hook time budget, and whether Pi executes a
+rewritten command or accepts the documented confirmation API has not been verified live.
+On Windows, the token launcher requires Git Bash. The plugin also needs Node and Git, plus
+the local repo-standard resolver/catalog. Tokenized `gh` calls require broker credentials and a
+successful token mint. See the plugin README's [Known limits](https://github.com/simpsonm09-org/simpsonm09-org-ai-plugin#known-limits)
+for the precise cases and remaining limits.
 
 ## What this does not do
 

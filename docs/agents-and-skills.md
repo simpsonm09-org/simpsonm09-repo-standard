@@ -1,6 +1,6 @@
 # Agents and skills
 
-A repository can carry agents and skills next to its code. An agent or skill is a Markdown file with YAML frontmatter. Sessions run in T3 Code, through either the OpenCode or the Claude Code provider. The shared and personal skills reach both providers from plugins. A repository's own skills live in `.claude/skills/`, which both providers read. A repository's own agent profiles are read by OpenCode only. See [Harnesses](#harnesses) and [Repo-local files](#repo-local-files).
+A repository can carry agents and skills next to its code. An agent or skill is a Markdown file with YAML frontmatter. The org plugin's access gate supports OpenCode, Claude Code, GitHub Copilot CLI, and Pi. The shared and personal skills are provided by plugins. Repo-local skills and agent profiles use the paths described below; this guide documents their discovery in OpenCode and Claude Code only. See [Harnesses](#harnesses) and [Repo-local files](#repo-local-files).
 
 ## Ownership
 
@@ -13,20 +13,22 @@ General best practices and integration live in the plugins. Repository-specific 
 
 The test: would this help another repository? If so, it belongs in a plugin. A repository never restates a plugin skill. It names the skill to load.
 
-`maxstack` composes the plugin layers: the PStack base, the org layer, and the personal layer. Its installer writes them once, at the workspace root, for both harnesses. Nothing is configured per repository for plugins.
+`maxstack` composes the plugin layers: the PStack base, the org layer, and the personal layer. The org plugin's gate supports OpenCode, Claude Code, GitHub Copilot CLI, and Pi; installation and harness setup are specific to each adapter.
 
 ## Harnesses
 
-T3 Code runs two providers. Each finds the plugins in a different way, and each names plugin skills in a different way.
+The four gate harnesses load the org plugin through different entry points. See the org plugin README's [plugin loading](https://github.com/simpsonm09-org/simpsonm09-org-ai-plugin#how-it-gets-loaded), [Copilot build](https://github.com/simpsonm09-org/simpsonm09-org-ai-plugin#github-copilot-cli-build), and [Pi build](https://github.com/simpsonm09-org/simpsonm09-org-ai-plugin#pi-coding-agent-build) for those details.
 
-| Harness | Finds plugins | Plugin skill names | Repo-local skills (`.claude/skills/`) | Repo-local agents (`.opencode/agents/`) |
+| Harness | Org plugin entry point | Gate adapter | Repo-local skills (`.claude/skills/`) | Repo-local agents (`.opencode/agents/`) |
 | --- | --- | --- | --- | --- |
-| OpenCode | Walks up from the repository or worktree to the workspace root, and loads `.opencode/plugins/<name>` | Unprefixed, such as `repo-standard` | Read | Read |
-| Claude Code | A T3 Claude provider instance launched with `--plugin-dir <workspace>\.claude\plugins`, which holds one folder per plugin | Prefixed with the plugin name, such as `simpsonm09-org-ai-plugin:repo-standard` and `pstack:poteto-mode` | Read | Not read |
+| OpenCode | Loads the workspace `.opencode/plugins/<name>` plugin | `create.before` shell hook | Read | Read |
+| Claude Code | Start with `--plugin-dir <workspace>/.claude/plugins` | `PreToolUse` hook | Read | Not read |
+| GitHub Copilot CLI | Pass the plugin folder containing `.github/plugin/plugin.json` with `--plugin-dir` | Copilot `preToolUse` hook, adapted to the shared Claude decision | Not documented here | Not documented here |
+| Pi | Load the package through Pi's `pi` manifest; save it in Pi's `packages` list to include child agents | `tool_call` extension | Not documented here | Not documented here |
 
-`<workspace>` is the workspace root above `projects`. The installer and the T3 provider setup are in `docs/t3-setup.md` of `simpsonm09-maxstack`.
+OpenCode registers the plugin's skills through its skill transform. Claude Code loads the plugin from its plugin directory. The org plugin README does not establish repo-local skill or agent discovery for Copilot CLI or Pi.
 
-The access gate ships in the org plugin and runs in both harnesses. See [`features/agent-access.md`](features/agent-access.md).
+The access gate ships in the org plugin and runs in all four harnesses. See [`features/agent-access.md`](features/agent-access.md).
 
 ## Locations
 
