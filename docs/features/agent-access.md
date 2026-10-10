@@ -193,16 +193,18 @@ a clone under `projects\repos` or a worktree of one. Any other path is not gated
 
 - **OpenCode** calls the gate in its `create.before` shell hook. It rewrites denied
   commands to a shell-specific error and sets `GH_TOKEN` for an allowed `gh` command.
+  Resolver-permitted writes run without an approval prompt. See the plugin README's
+  [Known limits](https://github.com/simpsonm09-org/simpsonm09-org-ai-plugin#known-limits).
 - **Claude Code** uses `PreToolUse` for Bash and PowerShell. It denies disallowed calls
   and rewrites allowed Bash `gh` calls through the token launcher. Read-only `gh` calls
   run without a prompt; other allowed `gh` calls ask first. `gh` in PowerShell is denied
   with a hint to use Bash. A `SessionStart` hook states the repository's level.
 - **GitHub Copilot CLI** adapts its native hook payload to the Claude decision and maps
-  command rewrites to `modifiedArgs`. It supports Bash and PowerShell. Allowed writes ask
+  command rewrites to `modifiedArgs`. It supports Bash and PowerShell. Allowed `gh` writes ask
   first unless the hook process has `AGENT_ACCESS_COPILOT_ASK=allow`.
 - **Pi** gates Bash calls through its `tool_call` extension. Denials block the call, and
-  allowed `gh` calls use the token launcher. Read-only calls need no prompt; other allowed
-  calls ask when a prompt is available and block if no one can answer. `AGENT_ACCESS_PI_ASK=allow`
+  allowed `gh` calls use the token launcher. Read-only `gh` calls need no prompt; other allowed
+  `gh` calls ask when a prompt is available and block if no one can answer. `AGENT_ACCESS_PI_ASK=allow`
   skips that prompt in RPC or no-prompt sessions. For child agents to load the gate, install
   the package in Pi's saved `packages` list.
 
@@ -218,11 +220,12 @@ four adapter protocols, see the org plugin README's [gate overview](https://gith
 the [Copilot build](https://github.com/simpsonm09-org/simpsonm09-org-ai-plugin#github-copilot-cli-build),
 and the [Pi build](https://github.com/simpsonm09-org/simpsonm09-org-ai-plugin#pi-coding-agent-build).
 
-The Claude hook can fail open if Claude Code kills it at its outer timeout or cannot find
+The Claude hook can fail open if Claude Code kills it at its own hook timeout or cannot find
 `node`; its internal failures deny. Copilot's timeout behavior and its PowerShell rewrite
 have not been measured live. Pi's gate has no hook time budget, and whether Pi executes a
 rewritten command or accepts the documented confirmation API has not been verified live.
-On Windows, the token launcher requires Git Bash. The plugin also needs Node and Git, plus
+On Windows, Bash token launches require Git Bash. Copilot's PowerShell launches use Windows
+PowerShell. The plugin also needs Node and Git, plus
 the local repo-standard resolver/catalog. Tokenized `gh` calls require broker credentials and a
 successful token mint. See the plugin README's [Known limits](https://github.com/simpsonm09-org/simpsonm09-org-ai-plugin#known-limits)
 for the precise cases and remaining limits.
