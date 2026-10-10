@@ -17,14 +17,15 @@ export function extensionOf(name) {
   return extname(name).toLowerCase();
 }
 
-export function listFiles(dir, extensions) {
+export function listFiles(dir, extensions, skipDirs = new Set()) {
   const out = [];
   if (!existsSync(dir)) return out;
   const walk = (current) => {
     for (const entry of readdirSync(current, { withFileTypes: true })) {
       const full = join(current, entry.name);
-      if (entry.isDirectory()) walk(full);
-      else if (extensions.includes(extensionOf(entry.name))) out.push(full);
+      if (entry.isDirectory()) {
+        if (!skipDirs.has(entry.name)) walk(full);
+      } else if (extensions.includes(extensionOf(entry.name))) out.push(full);
     }
   };
   walk(dir);

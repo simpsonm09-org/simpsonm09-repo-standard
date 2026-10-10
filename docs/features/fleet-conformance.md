@@ -7,7 +7,7 @@ repository audits another, and there is no organization-wide audit or token.
 ## `check-standard`
 
 [`../../scripts/check-standard.mjs`](../../scripts/check-standard.mjs) takes one
-repository path and prints a compact matrix of eight tree-local groups.
+repository path and prints a compact matrix of nine tree-local groups.
 
 | Group | Checks |
 | --- | --- |
@@ -19,9 +19,34 @@ repository path and prints a compact matrix of eight tree-local groups.
 | `docs` | The [documentation layout](../documentation.md) holds. |
 | `scripting` | Recipe bodies stay portable, scripts are declared or twinned, non-vendored skills call `just <recipe>`, and a repo-local skill id is in one skill root. |
 | `env` | A root `.worktreeinclude` lists the local files, each is ignored by `.gitignore`, and every listed path has a committed sibling `.example`. |
+| `subprocess` | Every `node:child_process` call in a source file passes a literal `windowsHide: true`, so Windows opens no empty console window. |
 
 The script exits `1` when any group has a gap. It never reads the exception file, so
 a single repository can be checked on its own.
+
+### The `subprocess` group
+
+The `subprocess` group is named for its scope, the child processes a Node script
+starts. Its rule id is `subprocess/windows-hide`, and each gap prints `file:line`. It
+reads each `.mjs`, `.js`, `.cjs`, `.ts`, `.mts`, and `.cts` file in the working tree,
+except `node_modules`, `.git`, and vendored PStack skills, which the scripting group
+also exempts.
+
+The scan is token-based, so it needs no parser dependency. It follows a
+`node:child_process` binding through a static, namespace, default, destructured,
+renamed, `require`, or dynamic `import` form, and a name defaulted or assigned
+straight from one of its functions (`spawn = spawnSync`). A call fails when:
+
+- it has no options, or its options are a callback alone;
+- its options are a variable, so the key cannot be read;
+- its options object does not set `windowsHide: true` as a literal; or
+- a spread follows that key, because the spread could override it.
+
+The scan does not follow any other function value. A child_process function stored
+in a variable, passed as an argument, or read from a property is not checked, and
+neither is a member call written with a string key, `cp['spawn'](`. A method that
+shares a name with an imported child_process function is read as a call.
+Fix a finding by writing the options as a literal object in the call.
 
 ## `check-repo`
 
