@@ -64,11 +64,14 @@ The workflow calls the gate as:
       - name: Patch coverage gate
         env:
           BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
-        run: node .standard/scripts/patch-coverage.mjs --lcov coverage/lcov.info --base "$BASE" --mode lines
+        run: node .standard/scripts/patch-coverage.mjs --lcov coverage/lcov.info --base "$BASE" --mode both --allow-missing-branch
 ```
 
-Start with `--mode lines`. Raise the mode to `both` and the thresholds per repository once
-the coverage tool emits branch data and the suite is strong.
+In the standard repository itself, the workflow runs `scripts/patch-coverage.mjs` with no
+`.standard/` prefix. The workflow passes no thresholds, so the defaults apply to every
+repository: 80 percent of changed lines and 70 percent of changed branches. A repository
+cannot set its own values without a change to the shared workflow. A report with no `BRDA`
+records is gated on lines only, and the run says so.
 
 ## Branch data
 
@@ -78,7 +81,7 @@ Branch coverage needs `BRDA` records in the lcov report, and not every tool writ
 - `pytest-cov` writes branch data only with `--cov-branch`.
 - `cargo-llvm-cov` writes branch data only with `--branch`.
 - The JaCoCo and Cobertura converters were upgraded to emit `BRDA`.
-- Go stays line-only, so a Go repository uses `--mode lines`.
+- Go writes no branch data. The shared workflow degrades a Go repository to line coverage and prints that it did.
 
 The gate is fail-closed. When the mode requires branches and the report has no `BRDA`
 records, the gate fails instead of silently passing. Pass `--allow-missing-branch` to
@@ -121,5 +124,6 @@ and writes `coverage/lcov.info`. The gate then runs unchanged.
 node scripts/patch-coverage.mjs --lcov coverage/lcov.info --base origin/main
 ```
 
-Add `--mode both` and the thresholds to mirror what the workflow gates. A change with no
-measured lines passes, so a documentation-only change is never blocked.
+Add `--mode both --allow-missing-branch` to mirror what the workflow gates. The 80 and 70
+thresholds are the defaults, so the command needs no threshold flags. A change with no
+measured units passes, so a documentation-only change is never blocked.
