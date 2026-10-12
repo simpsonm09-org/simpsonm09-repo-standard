@@ -28,7 +28,9 @@ that globs the repository must exclude `.standard/`, or it collects the standard
 files.
 
 A repository that calls the shared workflow must define the recipe. The standard check
-enforces it with `ci/coverage-recipe`.
+enforces it with `ci/coverage-recipe`. A repository with code under test calls the shared
+workflow. A repository without code under test does not, and [governance.md](governance.md#required-checks)
+says how it declares that.
 
 A TypeScript repository with Vitest adds `@vitest/coverage-v8` and reports lcov.
 

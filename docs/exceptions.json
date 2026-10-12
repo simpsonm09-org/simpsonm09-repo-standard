@@ -7,6 +7,18 @@
       "date": "2026-09-30"
     },
     {
+      "repo": "simpsonm09-org/simpsonm09-repo-catalog",
+      "checks": ["ci/coverage"],
+      "reason": "Records only. The roster and policy live in repos.json, and scripts/validate.mjs checks them. The repository has no code under test, so it has no coverage job and does not require coverage / coverage. See docs/governance.md, Required checks.",
+      "date": "2026-10-12"
+    },
+    {
+      "repo": "simpsonm09-org/simpsonm09-machine-inventory",
+      "checks": ["ci/coverage"],
+      "reason": "Records only. The machine records live in machines/, and the validator and renderer in scripts/ check and render them. The repository has no code under test, so it has no coverage job and does not require coverage / coverage. See docs/governance.md, Required checks.",
+      "date": "2026-10-12"
+    },
+    {
       "repo": "simpsonm09-org/simpsonm09-org-ai-plugin",
       "checks": ["community/.aislop/config.yml"],
       "reason": "The aislop dependency audit is off because the transitive http-cache-semantics 4.2.0 carries CVE-2026-93748 with no fixed version, and the Trivy scan is the dependency gate. The divergence is documented in the file.",

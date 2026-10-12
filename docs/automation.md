@@ -23,3 +23,9 @@ Every label named in the rule set must exist in the repository. The labeler skip
 [`../templates/workflows/release.yml`](../templates/workflows/release.yml) creates a GitHub release when a `v*` tag is pushed. It uses `gh release create --generate-notes`, so GitHub writes the notes from the merged pull requests and needs no third-party action. Copy it to `.github/workflows/release.yml`, then push a tag.
 
 Tag protection comes from the `protect-tags` ruleset. See [governance.md](governance.md).
+
+## CodeQL
+
+[`../templates/workflows/codeql.yml`](../templates/workflows/codeql.yml) runs CodeQL on pushes to `main`, on pull requests, and weekly. Copy it to `.github/workflows/codeql.yml` and replace the `LANGUAGES` placeholder in the matrix with the languages the repository ships.
+
+CodeQL applies to a repository with executable source code in a language CodeQL supports. It does not apply to the template repository, and it does not apply to a repository of records, docs, or configuration. The workflow is the repository's own. It is not a required status check, so no ruleset lists it.

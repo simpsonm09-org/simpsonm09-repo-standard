@@ -32,13 +32,32 @@ Targets `refs/heads/main`.
 - Extra approval for unattributed changes is off. GitHub enables `require_extra_approval_for_unattributed_changes` when the field is absent, and that would demand an approval a solo maintainer cannot give. The ruleset sets it to `false` explicitly.
 - Dismiss stale approvals and require conversation resolution.
 - Require signed commits on the branch.
-- Require the lint, aislop, security, standard, coverage, and test status checks, and require branches to be up to date.
+- Require the lint, aislop, security, standard, and test status checks, and require branches to be up to date. A code repository also requires `coverage / coverage`. See [Required checks](#required-checks).
 - No linear-history rule. Merge commits are allowed.
-- Bypass list is the organization admin role with mode `pull_request`, plus the agent App on a `merge` or `full` repository. The admin is the maintainer's escape hatch. The App bypass lets the agent land its own green pull request without a direct push. Every bypass is recorded in the audit log.
+- Bypass list is the organization admin role with mode `pull_request`, plus the fleet agent's GitHub App integration on a `merge` or `full` repository. The committed file is the base. [Bypass actors](#bypass-actors) gives the per-level entry. The admin is the maintainer's escape hatch. The App bypass lets the agent land its own green pull request without a direct push. Every bypass is recorded in the audit log.
 
 ### protect-tags
 
 Targets `refs/tags/v*`. Blocks update, deletion, and force push.
+
+## Required checks
+
+A required status check must be reported by a job that the repository runs. A required check with no job never reports, so every pull request waits on it forever. The required set follows the repository's kind.
+
+- A **code** repository has executable code under test. It calls the shared `coverage` workflow, defines the `coverage` recipe, and requires `coverage / coverage`.
+- A **records** repository has no executable code under test. Its records, documents, configuration, or composition are the product. It does not call the coverage workflow and does not require `coverage / coverage`.
+
+Both kinds require `lint / flint`, `aislop / aislop`, `security / trivy`, `security / secrets`, `standard / standard`, and `test`. A repository may add a second test job named `test-<suffix>` and require it once it is stable. See [testing.md](testing.md).
+
+A repository declares itself records with an entry in [`exceptions.json`](exceptions.json) on the check id `ci/coverage`, and a reason that names what the repository holds. The entry is the declaration. A repository with no such entry is code.
+
+The checker enforces the rule. Each gap prints its id.
+
+- `ci/coverage` (`check-standard`): ci.yml has no `coverage` job. `check-standard` cannot read exceptions, so a records repository shows this gap until `check-repo` applies its entry.
+- `ci/coverage-unrequired` (`check-repo`): a records repository calls the coverage workflow.
+- `ruleset/required-missing`, `ruleset/required-no-job`, and `ruleset/required-unexpected` (`check-repo` with the API, on a public repository): the live `protect-main` requires a set other than the one the kind expects, or requires a check that no job reports.
+
+The apply script builds each repository's payload from the committed file. It adds `coverage / coverage` for a code repository and removes it for a records repository.
 
 ## Code owners and reviewers
 
@@ -68,4 +87,14 @@ Rulesets on private repositories need GitHub Pro for a personal account and GitH
 
 ## Bypass actors
 
-The rulesets use `OrganizationAdmin` as the bypass actor. For a repository that is not in an organization, replace it with `RepositoryRole` and the administrator role ID.
+`rulesets/protect-main.json` is the base for every repository. It lists one bypass actor, the `OrganizationAdmin` role with mode `pull_request`. For a repository that is not in an organization, replace that entry with `RepositoryRole` and the administrator role ID.
+
+The apply script adds one more entry per repository, for the fleet agent's GitHub App integration. The entry depends on the repository's agent access level. See [agent access](features/agent-access.md#the-agent-identity).
+
+| Level | Fleet agent App entry on the bypass list |
+| --- | --- |
+| `none`, `read`, `propose` | None. |
+| `merge` | Mode `pull_request`. |
+| `full` | Mode `always`, because a `full` repository pushes to `main` directly. |
+
+The committed file names no actor id for the App. A live ruleset is the base, plus `coverage / coverage` for a code repository (see [Required checks](#required-checks)), plus the App entry for its level.

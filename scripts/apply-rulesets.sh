@@ -46,9 +46,9 @@ for file in "$here"/rulesets/*.json; do
   ruleset_name="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["name"])' "$file")"
   payload="$(mktemp)"
   if [[ -n "$app_id" ]]; then
-    node "$here/scripts/ruleset-payload.mjs" "$file" --level "$level" --app-id "$app_id" >"$payload"
+    node "$here/scripts/ruleset-payload.mjs" "$file" --level "$level" --app-id "$app_id" --repo "$repo" >"$payload"
   else
-    node "$here/scripts/ruleset-payload.mjs" "$file" --level "$level" >"$payload"
+    node "$here/scripts/ruleset-payload.mjs" "$file" --level "$level" --repo "$repo" >"$payload"
   fi
   id="$(gh api "repos/$repo/rulesets" --jq ".[] | select(.name==\"$ruleset_name\") | .id" 2>/dev/null | head -n1 || true)"
   if [[ "$apply" == "1" ]]; then

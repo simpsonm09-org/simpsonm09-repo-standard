@@ -80,6 +80,12 @@
       "description": "Run the env convention rule tests over fixtures."
     },
     {
+      "id": "test-required",
+      "kind": "portable",
+      "run": "node scripts/required.test.mjs",
+      "description": "Run the required-check rule tests over fixtures and the check-standard and check-repo matrices."
+    },
+    {
       "id": "verify",
       "kind": "portable",
       "run": "node scripts/verify.mjs",

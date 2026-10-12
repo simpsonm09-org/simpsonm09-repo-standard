@@ -28,6 +28,12 @@ Pin every action to a commit SHA with the version in a trailing comment. See [`p
 
 The test command is the repository's own. Python runs `pytest`, Node runs `npm test`, and Kotlin runs `./gradlew test`.
 
+### A second test job
+
+A repository whose suite must run on an operating system other than the default runner may run it as a second job named `test-<suffix>`. For example, maxstack runs its installer suite as `test-node` on a Windows runner. The plain `test` job still exists and runs the default suite.
+
+The second job is not required at first. Add it to the repository's required checks once it is stable, and until then it reports without blocking. The checker accepts a required `test-<suffix>` check only when ci.yml defines that job.
+
 ## Regenerate the API document
 
 A repository that exposes an HTTP API adds a step that regenerates the OpenAPI document and fails on drift. Run it before the coverage gate. See [`documentation.md`](documentation.md).
@@ -41,7 +47,7 @@ A repository that exposes an HTTP API adds a step that regenerates the OpenAPI d
 
 ## Required check
 
-The shared status checks are `lint / flint`, `aislop / aislop`, `security / trivy`, `security / secrets`, `standard / standard`, and `coverage / coverage`. The `test` job is also required. Name the job `test` so the required check has one stable name across the fleet. See [`governance.md`](governance.md).
+Every repository requires `lint / flint`, `aislop / aislop`, `security / trivy`, `security / secrets`, `standard / standard`, and `test`. A repository with code under test also requires `coverage / coverage`, and a repository without code under test does not. Name the job `test` so the required check has one stable name across the fleet. See [`governance.md`](governance.md#required-checks).
 
 ## Local
 
