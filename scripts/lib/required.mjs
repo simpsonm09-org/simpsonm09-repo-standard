@@ -16,19 +16,20 @@ export const BASE_CONTEXTS = Object.freeze([
   'test',
 ]);
 
-// A records repository declares itself with an exception on this check id, in
-// docs/exceptions.json. Any other repository is a code repository.
-export const RECORDS_EXCEPTION = 'ci/coverage';
+// A repository with no coverage job declares that with an exception on this check
+// id, in docs/exceptions.json. The entry's reason says why. Any other repository is
+// covered and must have the job.
+export const COVERAGE_EXCEPTION = 'ci/coverage';
 
 const EXTRA_TEST_JOB = /^test-[A-Za-z0-9_-]+$/;
 
 export function kindOf(exceptions, repo) {
-  if (!repo) return 'code';
-  return findException(exceptions, repo, RECORDS_EXCEPTION) ? 'records' : 'code';
+  if (!repo) return 'covered';
+  return findException(exceptions, repo, COVERAGE_EXCEPTION) ? 'uncovered' : 'covered';
 }
 
 export function expectedChecks(kind) {
-  return kind === 'code' ? [...BASE_CONTEXTS, COVERAGE_CONTEXT] : [...BASE_CONTEXTS];
+  return kind === 'covered' ? [...BASE_CONTEXTS, COVERAGE_CONTEXT] : [...BASE_CONTEXTS];
 }
 
 // The job that reports a required check. "lint / flint" is reported by the caller
@@ -45,7 +46,7 @@ export function requiredGaps({ kind, live, jobs }) {
   const required = new Set(live);
   for (const context of expected) {
     if (!required.has(context)) {
-      gaps.push({ id: 'ruleset/required-missing', message: `${context} is expected for a ${kind} repository and is not required` });
+      gaps.push({ id: 'ruleset/required-missing', message: `${context} is expected for this repository and is not required` });
     }
   }
   for (const context of live) {
@@ -53,7 +54,7 @@ export function requiredGaps({ kind, live, jobs }) {
     if (!jobs.has(job)) {
       gaps.push({ id: 'ruleset/required-no-job', message: `${context} is required, but ci.yml has no "${job}" job to report it` });
     } else if (!expected.includes(context) && !EXTRA_TEST_JOB.test(context)) {
-      gaps.push({ id: 'ruleset/required-unexpected', message: `${context} is required, but a ${kind} repository does not require it` });
+      gaps.push({ id: 'ruleset/required-unexpected', message: `${context} is required, but this repository does not expect it` });
     }
   }
   return gaps;
@@ -66,17 +67,17 @@ export function rulesetGaps(ruleset, { kind, jobs }) {
   return requiredGaps({ kind, live, jobs });
 }
 
-// A records repository that calls the coverage workflow runs a check nothing
+// An uncovered repository that calls the coverage workflow runs a check nothing
 // requires, so the job is noise at best and a broken recipe at worst.
-export function recordsCoverageGaps(kind, callsCoverage) {
-  if (kind !== 'records' || !callsCoverage) return [];
+export function uncoveredCallGaps(kind, callsCoverage) {
+  if (kind !== 'uncovered' || !callsCoverage) return [];
   return [
     {
       id: 'ci/coverage-unrequired',
-      message: 'ci.yml calls the coverage workflow, but the exception file records this repository as having no code under test',
+      message: 'ci.yml calls the coverage workflow, but the exception file declares this repository as having no coverage job',
     },
   ];
 }
 
 export const COVERAGE_MISSING_MESSAGE =
-  'ci.yml has no "coverage" job, so coverage / coverage cannot report. A repository with code under test calls the shared coverage workflow. A repository without code under test records that with an exception on ci/coverage in docs/exceptions.json';
+  'ci.yml has no "coverage" job, so coverage / coverage cannot report. A repository with a coverage job calls the shared coverage workflow. A repository without one declares it with an exception on ci/coverage in docs/exceptions.json, and the reason says why';

@@ -8,7 +8,7 @@ import { checkStandard } from './check-standard.mjs';
 import { loadExceptions, findException } from './lib/exceptions.mjs';
 import { jobsCalling, parseJobs } from './lib/ci.mjs';
 import { normalize, readText } from './lib/tree.mjs';
-import { kindOf, recordsCoverageGaps, rulesetGaps } from './lib/required.mjs';
+import { kindOf, rulesetGaps, uncoveredCallGaps } from './lib/required.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const STANDARD_ROOT = resolve(HERE, '..');
@@ -140,7 +140,7 @@ function main() {
   const notice = (message) => notices.push(message);
 
   const callsCoverage = jobsCalling(jobs, 'coverage', root === STANDARD_ROOT).length > 0;
-  gaps.push(...recordsCoverageGaps(kind, callsCoverage));
+  gaps.push(...uncoveredCallGaps(kind, callsCoverage));
 
   if (options.api && repo) runApiChecks(repo, gaps, notice, { kind, jobs });
 

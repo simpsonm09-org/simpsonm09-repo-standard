@@ -4,7 +4,7 @@ Do these steps once per repository.
 
 ## 1. Add the caller workflow
 
-Copy [`templates/caller-ci.yml`](../templates/caller-ci.yml) to `.github/workflows/ci.yml` in the consuming repository. It calls the reusable lint, aislop, security, and standard workflows. A repository with code under test also calls the coverage workflow. A repository without code under test removes that job and records the kind as described in [governance.md](governance.md#required-checks).
+Copy [`templates/caller-ci.yml`](../templates/caller-ci.yml) to `.github/workflows/ci.yml` in the consuming repository. It calls the reusable lint, aislop, security, and standard workflows. A repository with a coverage job also calls the coverage workflow. A repository without one declares its reason in [`exceptions.json`](exceptions.json) on `ci/coverage`, as described in [governance.md](governance.md#required-checks).
 
 The `standard` job runs [`check-repo.mjs`](../scripts/check-repo.mjs) for the repository and applies [`exceptions.json`](exceptions.json) from the pinned standard. It checks the tree-local groups on the pull request. See [`features/fleet-conformance.md`](features/fleet-conformance.md).
 

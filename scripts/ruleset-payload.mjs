@@ -25,7 +25,7 @@ const EXCEPTIONS = join(HERE, '..', 'docs', 'exceptions.json');
 // Integration bypass actor, so the level picks between them.
 const APP_BYPASS_MODE = { merge: 'pull_request', full: 'always' };
 
-export function buildPayload(ruleset, level, appId, kind = 'code') {
+export function buildPayload(ruleset, level, appId, kind = 'covered') {
   const payload = JSON.parse(JSON.stringify(ruleset));
   if (payload.name !== 'protect-main') return payload;
   setCoverageContext(payload, kind);
@@ -38,13 +38,13 @@ export function buildPayload(ruleset, level, appId, kind = 'code') {
   return payload;
 }
 
-// The committed file lists the checks every repository reports. Only a code
+// The committed file lists the checks every repository reports. Only a covered
 // repository also requires coverage, so the kind adds or removes that one context.
 function setCoverageContext(payload, kind) {
   const rule = (payload.rules ?? []).find((entry) => entry.type === 'required_status_checks');
   if (!rule?.parameters) return;
   const others = (rule.parameters.required_status_checks ?? []).filter((entry) => entry.context !== COVERAGE_CONTEXT);
-  rule.parameters.required_status_checks = kind === 'code' ? [...others, { context: COVERAGE_CONTEXT }] : others;
+  rule.parameters.required_status_checks = kind === 'covered' ? [...others, { context: COVERAGE_CONTEXT }] : others;
 }
 
 function parseArgs(argv) {
@@ -110,20 +110,20 @@ function selfTestKinds() {
     rules: [{ type: 'required_status_checks', parameters: { required_status_checks: [{ context: 'lint / flint' }, { context: 'test' }] } }],
   };
 
-  const code = buildPayload(base, 'read', undefined, 'code');
-  assert(contextsOf(code).includes(COVERAGE_CONTEXT), 'a code repository requires coverage');
-  assert(contextsOf(code).includes('test'), 'a code repository keeps the base checks');
+  const covered = buildPayload(base, 'read', undefined, 'covered');
+  assert(contextsOf(covered).includes(COVERAGE_CONTEXT), 'a covered repository requires coverage');
+  assert(contextsOf(covered).includes('test'), 'a covered repository keeps the base checks');
 
-  const records = buildPayload(code, 'read', undefined, 'records');
-  assert(!contextsOf(records).includes(COVERAGE_CONTEXT), 'a records repository does not require coverage');
-  assert(contextsOf(records).join(',') === 'lint / flint,test', 'a records repository keeps exactly the base checks');
+  const uncovered = buildPayload(covered, 'read', undefined, 'uncovered');
+  assert(!contextsOf(uncovered).includes(COVERAGE_CONTEXT), 'an uncovered repository does not require coverage');
+  assert(contextsOf(uncovered).join(',') === 'lint / flint,test', 'an uncovered repository keeps exactly the base checks');
 
   assert(contextsOf(buildPayload(base, 'read', undefined)).includes(COVERAGE_CONTEXT),
-    'without a kind the payload is for a code repository');
-  assert(contextsOf(buildPayload(code, 'read', undefined, 'code')).filter((c) => c === COVERAGE_CONTEXT).length === 1,
-    'a code repository never duplicates coverage');
+    'without a kind the payload is for a covered repository');
+  assert(contextsOf(buildPayload(covered, 'read', undefined, 'covered')).filter((c) => c === COVERAGE_CONTEXT).length === 1,
+    'a covered repository never duplicates coverage');
 
-  const tags = buildPayload({ name: 'protect-tags', rules: base.rules }, 'read', undefined, 'records');
+  const tags = buildPayload({ name: 'protect-tags', rules: base.rules }, 'read', undefined, 'uncovered');
   assert(contextsOf(tags).includes(COVERAGE_CONTEXT) === false && contextsOf(tags).length === 2, 'protect-tags is untouched');
 }
 
@@ -155,7 +155,7 @@ function main() {
     process.exit(2);
   }
   const ruleset = JSON.parse(readFileSync(args.file, 'utf8'));
-  const kind = args.repo ? kindOf(loadExceptions(EXCEPTIONS), args.repo) : 'code';
+  const kind = args.repo ? kindOf(loadExceptions(EXCEPTIONS), args.repo) : 'covered';
   process.stdout.write(`${JSON.stringify(buildPayload(ruleset, args.level, args.appId, kind), null, 2)}\n`);
 }
 

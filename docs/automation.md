@@ -28,4 +28,4 @@ Tag protection comes from the `protect-tags` ruleset. See [governance.md](govern
 
 [`../templates/workflows/codeql.yml`](../templates/workflows/codeql.yml) runs CodeQL on pushes to `main`, on pull requests, and weekly. Copy it to `.github/workflows/codeql.yml` and replace the `LANGUAGES` placeholder in the matrix with the languages the repository ships.
 
-CodeQL applies to a repository with executable source code in a language CodeQL supports. It does not apply to the template repository, and it does not apply to a repository of records, docs, or configuration. The workflow is the repository's own. It is not a required status check, so no ruleset lists it.
+CodeQL applies to a repository with executable source code in a language CodeQL supports. A repository of records, docs, or configuration need not carry it. It may carry it when it has scripts in a supported language. The template repository does not carry it. The workflow is the repository's own, and it is never a required status check, so no ruleset lists it.

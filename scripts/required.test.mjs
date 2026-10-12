@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-// Prove the required-check rules. A code repository reports coverage / coverage,
-// and a records repository does not, so every required check has a job that reports
-// it. Each rule gets a violating case that must report its named gap and a
-// compliant case that must report nothing. The live ruleset is a fixture, so no
-// API is called. The CLI cases run check-repo over throwaway repositories and read
-// the committed exception file for the two records repositories.
+// Prove the required-check rules. A covered repository has a coverage job and
+// requires coverage / coverage. An uncovered repository has no coverage job, because
+// its exception on ci/coverage says why. Every required check has a job that reports
+// it. Each rule gets a violating case that must report its named gap and a compliant
+// case that must report nothing. The live ruleset is a fixture, so no API is called.
+// The CLI cases run check-repo over throwaway repositories and read the committed
+// exception file for the two uncovered repositories.
 //
 // Usage:
 //   node --test scripts/required.test.mjs
@@ -18,13 +19,15 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { checkStandard } from './check-standard.mjs';
 import { jobsCalling, parseJobs } from './lib/ci.mjs';
+import { loadExceptions } from './lib/exceptions.mjs';
 import { isMain } from './lib/proc.mjs';
-import { COVERAGE_CONTEXT, expectedChecks, kindOf, recordsCoverageGaps, requiredGaps, rulesetGaps } from './lib/required.mjs';
+import { COVERAGE_CONTEXT, expectedChecks, kindOf, requiredGaps, rulesetGaps, uncoveredCallGaps } from './lib/required.mjs';
 
 const CHECK_REPO = fileURLToPath(new URL('./check-repo.mjs', import.meta.url));
+const EXCEPTIONS = fileURLToPath(new URL('../docs/exceptions.json', import.meta.url));
 const PIN = 'a'.repeat(40);
-const RECORDS_REPO = 'simpsonm09-org/simpsonm09-repo-catalog';
-const CODE_REPO = 'simpsonm09-org/simpsonm09-fixture-go';
+const UNCOVERED_REPO = 'simpsonm09-org/simpsonm09-repo-catalog';
+const COVERED_REPO = 'simpsonm09-org/simpsonm09-fixture-go';
 const SHARED_JOBS = ['lint', 'aislop', 'security', 'standard'];
 const BASE_LIVE = ['lint / flint', 'aislop / aislop', 'security / trivy', 'security / secrets', 'standard / standard', 'test'];
 
@@ -59,7 +62,7 @@ function ciText({ coverage = null, omit = [], testSuffixes = [] } = {}) {
   return ['name: ci', 'on:', '  pull_request:', 'jobs:', ...blocks, ''].join('\n');
 }
 
-const CODE_JUST = 'coverage:\n    node scripts/cover.mjs\n';
+const COVERED_JUST = 'coverage:\n    node scripts/cover.mjs\n';
 
 function repoWith(ci, justfile = '') {
   return fixture({ '.github/workflows/ci.yml': ci, justfile });
@@ -79,81 +82,85 @@ function jobsOf(names) {
   return new Map(names.map((name) => [name, []]));
 }
 
-const CODE_JOBS = [...SHARED_JOBS, 'coverage', 'test'];
-const RECORDS_JOBS = [...SHARED_JOBS, 'test'];
-
-function testKindOf(assert) {
-  const exceptions = [{ repo: RECORDS_REPO, checks: new Set(['ci/coverage']), reason: '', date: '' }];
-  assert(kindOf(exceptions, RECORDS_REPO) === 'records', 'an excepted repository on ci/coverage is records');
-  assert(kindOf(exceptions, CODE_REPO) === 'code', 'a repository with no exception is code');
-  assert(kindOf(exceptions, null) === 'code', 'no repository identity is code');
-  const other = [{ repo: RECORDS_REPO, checks: new Set(['community/LICENSE']), reason: '', date: '' }];
-  assert(kindOf(other, RECORDS_REPO) === 'code', 'an exception on another check does not make a repository records');
-}
-
-function testExpectedChecks(assert) {
-  assert(expectedChecks('code').includes(COVERAGE_CONTEXT), 'code expects coverage / coverage');
-  assert(!expectedChecks('records').includes(COVERAGE_CONTEXT), 'records does not expect coverage / coverage');
-  for (const kind of ['code', 'records']) {
-    assert(expectedChecks(kind).includes('test'), `${kind} expects the test job`);
-  }
-}
-
-function testRecordsCoverageGaps(assert) {
-  const gaps = recordsCoverageGaps('records', true);
-  assert(gaps.length === 1 && gaps[0].id === 'ci/coverage-unrequired', 'records that calls coverage is a gap');
-  assert(recordsCoverageGaps('records', false).length === 0, 'records without a coverage call is clean');
-  assert(recordsCoverageGaps('code', true).length === 0, 'code that calls coverage is clean');
-}
+const COVERED_JOBS = [...SHARED_JOBS, 'coverage', 'test'];
+const UNCOVERED_JOBS = [...SHARED_JOBS, 'test'];
 
 function ids(gaps) {
   return gaps.map((gap) => gap.id);
 }
 
-function testLiveCodeRepository(assert) {
-  const clean = requiredGaps({ kind: 'code', live: expectedChecks('code'), jobs: jobsOf(CODE_JOBS) });
-  assert(clean.length === 0, `a code repository matching its kind: expected no gaps, got ${JSON.stringify(clean)}`);
+function testKindOf(assert) {
+  const exceptions = [{ repo: UNCOVERED_REPO, checks: new Set(['ci/coverage']), reason: '', date: '' }];
+  assert(kindOf(exceptions, UNCOVERED_REPO) === 'uncovered', 'a repository excepted on ci/coverage is uncovered');
+  assert(kindOf(exceptions, COVERED_REPO) === 'covered', 'a repository with no exception is covered');
+  assert(kindOf(exceptions, null) === 'covered', 'no repository identity is covered');
+  const other = [{ repo: UNCOVERED_REPO, checks: new Set(['community/LICENSE']), reason: '', date: '' }];
+  assert(kindOf(other, UNCOVERED_REPO) === 'covered', 'an exception on another check does not make a repository uncovered');
+}
 
-  const missing = requiredGaps({ kind: 'code', live: BASE_LIVE, jobs: jobsOf(CODE_JOBS) });
-  assert(ids(missing).join() === 'ruleset/required-missing', `a code repository without coverage required: got ${ids(missing)}`);
+function testExpectedChecks(assert) {
+  assert(expectedChecks('covered').includes(COVERAGE_CONTEXT), 'a covered repository expects coverage / coverage');
+  assert(!expectedChecks('uncovered').includes(COVERAGE_CONTEXT), 'an uncovered repository does not expect coverage / coverage');
+  for (const kind of ['covered', 'uncovered']) {
+    assert(expectedChecks(kind).includes('test'), `a ${kind} repository expects the test job`);
+  }
+}
+
+function testUncoveredCallGaps(assert) {
+  const gaps = uncoveredCallGaps('uncovered', true);
+  assert(gaps.length === 1 && gaps[0].id === 'ci/coverage-unrequired', 'an uncovered repository that calls coverage is a gap');
+  assert(uncoveredCallGaps('uncovered', false).length === 0, 'an uncovered repository without a coverage call is clean');
+  assert(uncoveredCallGaps('covered', true).length === 0, 'a covered repository that calls coverage is clean');
+}
+
+function testLiveCoveredRepository(assert) {
+  const clean = requiredGaps({ kind: 'covered', live: expectedChecks('covered'), jobs: jobsOf(COVERED_JOBS) });
+  assert(clean.length === 0, `a covered repository matching its kind: expected no gaps, got ${JSON.stringify(clean)}`);
+
+  const missing = requiredGaps({ kind: 'covered', live: BASE_LIVE, jobs: jobsOf(COVERED_JOBS) });
+  assert(ids(missing).join() === 'ruleset/required-missing', `a covered repository without coverage required: got ${ids(missing)}`);
   assert(missing[0].message.includes(COVERAGE_CONTEXT), 'the missing gap names coverage / coverage');
 }
 
-function testLiveRecordsRepository(assert) {
-  const clean = requiredGaps({ kind: 'records', live: BASE_LIVE, jobs: jobsOf(RECORDS_JOBS) });
-  assert(clean.length === 0, `a records repository matching its kind: expected no gaps, got ${JSON.stringify(clean)}`);
+function testLiveUncoveredRepository(assert) {
+  const clean = requiredGaps({ kind: 'uncovered', live: BASE_LIVE, jobs: jobsOf(UNCOVERED_JOBS) });
+  assert(clean.length === 0, `an uncovered repository matching its kind: expected no gaps, got ${JSON.stringify(clean)}`);
 
-  const noJob = requiredGaps({ kind: 'records', live: [...BASE_LIVE, COVERAGE_CONTEXT], jobs: jobsOf(RECORDS_JOBS) });
+  const noJob = requiredGaps({ kind: 'uncovered', live: [...BASE_LIVE, COVERAGE_CONTEXT], jobs: jobsOf(UNCOVERED_JOBS) });
   assert(ids(noJob).join() === 'ruleset/required-no-job', `coverage required with no coverage job: got ${ids(noJob)}`);
 
-  const unexpected = requiredGaps({ kind: 'records', live: [...BASE_LIVE, COVERAGE_CONTEXT], jobs: jobsOf([...RECORDS_JOBS, 'coverage']) });
-  assert(ids(unexpected).join() === 'ruleset/required-unexpected', `coverage required on records with a job: got ${ids(unexpected)}`);
+  const unexpected = requiredGaps({
+    kind: 'uncovered',
+    live: [...BASE_LIVE, COVERAGE_CONTEXT],
+    jobs: jobsOf([...UNCOVERED_JOBS, 'coverage']),
+  });
+  assert(ids(unexpected).join() === 'ruleset/required-unexpected', `coverage required on an uncovered repository with a job: got ${ids(unexpected)}`);
 }
 
 function testLiveExtraTestJob(assert) {
-  const withJob = requiredGaps({ kind: 'code', live: [...expectedChecks('code'), 'test-node'], jobs: jobsOf([...CODE_JOBS, 'test-node']) });
+  const withJob = requiredGaps({ kind: 'covered', live: [...expectedChecks('covered'), 'test-node'], jobs: jobsOf([...COVERED_JOBS, 'test-node']) });
   assert(withJob.length === 0, `a stable test-node job may be required: got ${JSON.stringify(withJob)}`);
 
-  const withoutJob = requiredGaps({ kind: 'code', live: [...expectedChecks('code'), 'test-node'], jobs: jobsOf(CODE_JOBS) });
+  const withoutJob = requiredGaps({ kind: 'covered', live: [...expectedChecks('covered'), 'test-node'], jobs: jobsOf(COVERED_JOBS) });
   assert(ids(withoutJob).join() === 'ruleset/required-no-job', `test-node required with no job: got ${ids(withoutJob)}`);
 }
 
 function testLiveNoJobForBaseCheck(assert) {
-  const gaps = requiredGaps({ kind: 'code', live: expectedChecks('code'), jobs: jobsOf(['test', 'lint']) });
+  const gaps = requiredGaps({ kind: 'covered', live: expectedChecks('covered'), jobs: jobsOf(['test', 'lint']) });
   assert(gaps.some((gap) => gap.id === 'ruleset/required-no-job'), 'a required check whose job is absent is a no-job gap');
 }
 
 function testTreeCoverageJob(assert) {
-  const withCoverage = repoWith(ciText({ coverage: `${sharedUses('coverage')}` }), CODE_JUST);
+  const withCoverage = repoWith(ciText({ coverage: `${sharedUses('coverage')}` }), COVERED_JUST);
   assert(!gapIds(withCoverage).some((id) => id === 'ci/coverage' || id === 'ci/coverage-recipe'),
-    'a code repository with the coverage job and recipe reports no coverage gap');
+    'a covered repository with the coverage job and recipe reports no coverage gap');
 
-  const missing = gapsOf(repoWith(ciText(), CODE_JUST));
+  const missing = gapsOf(repoWith(ciText(), COVERED_JUST));
   const coverageGap = missing.find((gap) => gap.id === 'ci/coverage');
-  assert(coverageGap !== undefined, 'a code repository without a coverage job is a ci/coverage gap');
+  assert(coverageGap !== undefined, 'a repository without a coverage job is a ci/coverage gap');
   assert(coverageGap.message.includes('cannot report'), 'the ci/coverage gap says the required check cannot report');
 
-  const wrong = repoWith(ciText({ coverage: sharedUses('lint') }), CODE_JUST);
+  const wrong = repoWith(ciText({ coverage: sharedUses('lint') }), COVERED_JUST);
   assert(gapIds(wrong).includes('ci/coverage'), 'a coverage job that calls another workflow is a ci/coverage gap');
 }
 
@@ -163,7 +170,7 @@ function testTreeSharedJobs(assert) {
 }
 
 function testExtraTestJob(assert) {
-  const withExtra = repoWith(ciText({ coverage: sharedUses('coverage'), testSuffixes: ['node'] }), CODE_JUST);
+  const withExtra = repoWith(ciText({ coverage: sharedUses('coverage'), testSuffixes: ['node'] }), COVERED_JUST);
   const found = gapIds(withExtra);
   assert(!found.includes('ci/test') && !found.includes('ci/coverage'), 'a test-node job beside a plain test job adds no gap');
 }
@@ -182,44 +189,56 @@ function testRulesetGaps(assert) {
   const live = (contexts) => ({
     rules: [{ type: 'required_status_checks', parameters: { required_status_checks: contexts.map((context) => ({ context })) } }],
   });
-  const codeJobs = jobsOf(CODE_JOBS);
-  assert(rulesetGaps(live(expectedChecks('code')), { kind: 'code', jobs: codeJobs }).length === 0,
-    'a live ruleset matching the code kind is clean');
-  const gaps = rulesetGaps({ rules: [] }, { kind: 'code', jobs: codeJobs });
-  assert(gaps.length === expectedChecks('code').length && gaps.every((gap) => gap.id === 'ruleset/required-missing'),
+  const coveredJobs = jobsOf(COVERED_JOBS);
+  assert(rulesetGaps(live(expectedChecks('covered')), { kind: 'covered', jobs: coveredJobs }).length === 0,
+    'a live ruleset matching the covered kind is clean');
+  const gaps = rulesetGaps({ rules: [] }, { kind: 'covered', jobs: coveredJobs });
+  assert(gaps.length === expectedChecks('covered').length && gaps.every((gap) => gap.id === 'ruleset/required-missing'),
     'a ruleset with no required checks is missing every expected check');
-  const extra = rulesetGaps(live([...expectedChecks('code'), 'test-node']), { kind: 'code', jobs: jobsOf(CODE_JOBS) });
+  const extra = rulesetGaps(live([...expectedChecks('covered'), 'test-node']), { kind: 'covered', jobs: jobsOf(COVERED_JOBS) });
   assert(extra.length === 1 && extra[0].id === 'ruleset/required-no-job', 'a required test-node with no job is a no-job gap');
+}
+
+// Every coverage exception is a declaration, so it must name the reason. The two
+// reasons are records (no executable code under test) and not measurable by the
+// shared workflow. Either reason text is free, but it cannot be empty.
+function testExceptionReasons(assert) {
+  const coverage = loadExceptions(EXCEPTIONS).filter((entry) => entry.checks.has('ci/coverage'));
+  assert(coverage.length >= 4, `the coverage exceptions name the four repositories without a coverage job, got ${coverage.length}`);
+  for (const entry of coverage) {
+    assert(entry.repo.startsWith('simpsonm09-org/'), `${entry.repo} is an org repository`);
+    assert(entry.reason.trim().length > 0, `${entry.repo} gives a reason for having no coverage job`);
+  }
 }
 
 function runCheckRepo(root, repo) {
   return spawnSync(process.execPath, [CHECK_REPO, root, '--repo', repo, '--no-api'], { windowsHide: true, encoding: 'utf8' });
 }
 
-function testRecordsCli(assert) {
+function testUncoveredCli(assert) {
   const plain = repoWith(ciText());
-  const plainResult = runCheckRepo(plain, RECORDS_REPO);
+  const plainResult = runCheckRepo(plain, UNCOVERED_REPO);
   rmSync(plain, { recursive: true, force: true });
-  assert(plainResult.stdout.includes('  ci/coverage (2026-10-12)'), 'a records repository lists ci/coverage as excepted');
-  assert(!plainResult.stdout.includes('gap ci/coverage:'), 'a records repository with no coverage job has no open ci/coverage gap');
+  assert(plainResult.stdout.includes('  ci/coverage (2026-10-12)'), 'an uncovered repository lists ci/coverage as excepted');
+  assert(!plainResult.stdout.includes('gap ci/coverage:'), 'an uncovered repository with no coverage job has no open ci/coverage gap');
 
-  const calls = repoWith(ciText({ coverage: sharedUses('coverage') }), CODE_JUST);
-  const callsResult = runCheckRepo(calls, RECORDS_REPO);
+  const calls = repoWith(ciText({ coverage: sharedUses('coverage') }), COVERED_JUST);
+  const callsResult = runCheckRepo(calls, UNCOVERED_REPO);
   rmSync(calls, { recursive: true, force: true });
-  assert(callsResult.stdout.includes('gap ci/coverage-unrequired:'), 'a records repository that calls coverage has an open gap');
+  assert(callsResult.stdout.includes('gap ci/coverage-unrequired:'), 'an uncovered repository that calls coverage has an open gap');
 }
 
-function testCodeCli(assert) {
+function testCoveredCli(assert) {
   const missing = repoWith(ciText());
-  const missingResult = runCheckRepo(missing, CODE_REPO);
+  const missingResult = runCheckRepo(missing, COVERED_REPO);
   rmSync(missing, { recursive: true, force: true });
-  assert(missingResult.stdout.includes('gap ci/coverage:'), 'a code repository without a coverage job has an open ci/coverage gap');
+  assert(missingResult.stdout.includes('gap ci/coverage:'), 'a covered repository without a coverage job has an open ci/coverage gap');
 
-  const present = repoWith(ciText({ coverage: sharedUses('coverage') }), CODE_JUST);
-  const presentResult = runCheckRepo(present, CODE_REPO);
+  const present = repoWith(ciText({ coverage: sharedUses('coverage') }), COVERED_JUST);
+  const presentResult = runCheckRepo(present, COVERED_REPO);
   rmSync(present, { recursive: true, force: true });
-  assert(!presentResult.stdout.includes('gap ci/coverage:'), 'a code repository with the coverage job has no ci/coverage gap');
-  assert(!presentResult.stdout.includes('ci/coverage-unrequired'), 'a code repository is not flagged as records');
+  assert(!presentResult.stdout.includes('gap ci/coverage:'), 'a covered repository with the coverage job has no ci/coverage gap');
+  assert(!presentResult.stdout.includes('ci/coverage-unrequired'), 'a covered repository is not flagged as uncovered');
 }
 
 export function runTest() {
@@ -227,9 +246,9 @@ export function runTest() {
   try {
     testKindOf(assert);
     testExpectedChecks(assert);
-    testRecordsCoverageGaps(assert);
-    testLiveCodeRepository(assert);
-    testLiveRecordsRepository(assert);
+    testUncoveredCallGaps(assert);
+    testLiveCoveredRepository(assert);
+    testLiveUncoveredRepository(assert);
     testLiveExtraTestJob(assert);
     testLiveNoJobForBaseCheck(assert);
     testRulesetGaps(assert);
@@ -237,8 +256,9 @@ export function runTest() {
     testTreeSharedJobs(assert);
     testExtraTestJob(assert);
     testJobsCallingCoverage(assert);
-    testRecordsCli(assert);
-    testCodeCli(assert);
+    testExceptionReasons(assert);
+    testUncoveredCli(assert);
+    testCoveredCli(assert);
     process.stdout.write(`required.test: ok (${total()} assertions)\n`);
     return 0;
   } catch (error) {

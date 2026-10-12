@@ -31,7 +31,7 @@ skip the API checks.
 | --- | --- |
 | `files` | The required paths exist. |
 | `mise` | `mise.toml` pins `aqua:casey/just`. |
-| `ci` | `ci.yml` calls `lint`, `aislop`, `security`, and `standard` at a pinned SHA, and defines a `test` job that runs on a runner. It also defines a `coverage` job that calls the shared coverage workflow at a pinned SHA. `check-repo` excepts a records repository on `ci/coverage`. See [governance.md](governance.md#required-checks). |
+| `ci` | `ci.yml` calls `lint`, `aislop`, `security`, and `standard` at a pinned SHA, and defines a `test` job that runs on a runner. It also defines a `coverage` job that calls the shared coverage workflow at a pinned SHA. `check-repo` accepts an exception on `ci/coverage` as the declaration of a repository without a coverage job. See [governance.md](governance.md#required-checks). |
 | `dependabot` | `.github/dependabot.yml` declares version 2, a scheduled ecosystem, and no inline credential. |
 | `community` | The byte-identical community files match the pinned standard. |
 | `docs` | The [documentation layout](documentation.md) holds. |
@@ -39,7 +39,7 @@ skip the API checks.
 | `env` | A root `.worktreeinclude` lists the local files, each is ignored by `.gitignore`, and every listed path has a committed sibling `.example`. |
 | `subprocess` | Every `node:child_process` call in a source file passes a literal `windowsHide: true`. See [fleet-conformance.md](features/fleet-conformance.md). |
 | `settings` | The default branch is `main`, the description is set, and the owner topic is present. |
-| `ruleset` | A public repository carries `protect-main`, and its required checks match the repository's kind, with a job for each. |
+| `ruleset` | A public repository carries `protect-main`, and its required checks match the repository's coverage state, with a job for each. |
 
 Each gap prints its id and a one-line reason. Check ids are stable and are the
 values the exception file matches.
@@ -81,8 +81,9 @@ tolerated gap with a reason and a date. Never silence a gap inline in code.
 An exception that no longer matches a gap is harmless. You should still delete it,
 because the exception file is the record of what the standard tolerates.
 
-An exception on `ci/coverage` is the declaration that a repository has no code under
-test. It is not a tolerated gap in the usual sense. See [governance.md](governance.md#required-checks).
+An exception on `ci/coverage` declares that a repository has no coverage job. Its reason
+says why: the repository has no executable code under test, or its code under test cannot
+be measured by the shared coverage workflow. See [governance.md](governance.md#required-checks).
 
 ## The caller workflow
 

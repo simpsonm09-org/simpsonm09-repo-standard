@@ -6,7 +6,7 @@ The standard ships the lint, aislop, and security jobs. It does not ship a test 
 
 Add a `test` job to the repository's caller workflow next to the shared jobs. The job installs the pinned tools and runs the suite.
 
-[`../templates/caller-ci.yml`](../templates/caller-ci.yml) holds the three shared jobs. Add the test job after them. A Python repository adds this shape:
+[`../templates/caller-ci.yml`](../templates/caller-ci.yml) holds the five shared jobs. Add the test job after them. A Python repository adds this shape:
 
 ```yaml
   test:
@@ -47,7 +47,7 @@ A repository that exposes an HTTP API adds a step that regenerates the OpenAPI d
 
 ## Required check
 
-Every repository requires `lint / flint`, `aislop / aislop`, `security / trivy`, `security / secrets`, `standard / standard`, and `test`. A repository with code under test also requires `coverage / coverage`, and a repository without code under test does not. Name the job `test` so the required check has one stable name across the fleet. See [`governance.md`](governance.md#required-checks).
+Every repository requires `lint / flint`, `aislop / aislop`, `security / trivy`, `security / secrets`, `standard / standard`, and `test`. A repository with a coverage job also requires `coverage / coverage`. A repository without one declares why in [`exceptions.json`](exceptions.json) on `ci/coverage`, and the reason is recorded there. Name the job `test` so the required check has one stable name across the fleet. See [`governance.md`](governance.md#required-checks).
 
 ## Local
 

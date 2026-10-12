@@ -32,7 +32,7 @@ Targets `refs/heads/main`.
 - Extra approval for unattributed changes is off. GitHub enables `require_extra_approval_for_unattributed_changes` when the field is absent, and that would demand an approval a solo maintainer cannot give. The ruleset sets it to `false` explicitly.
 - Dismiss stale approvals and require conversation resolution.
 - Require signed commits on the branch.
-- Require the lint, aislop, security, standard, and test status checks, and require branches to be up to date. A code repository also requires `coverage / coverage`. See [Required checks](#required-checks).
+- Require the lint, aislop, security, standard, and test status checks, and require branches to be up to date. A covered repository also requires `coverage / coverage`. See [Required checks](#required-checks).
 - No linear-history rule. Merge commits are allowed.
 - Bypass list is the organization admin role with mode `pull_request`, plus the fleet agent's GitHub App integration on a `merge` or `full` repository. The committed file is the base. [Bypass actors](#bypass-actors) gives the per-level entry. The admin is the maintainer's escape hatch. The App bypass lets the agent land its own green pull request without a direct push. Every bypass is recorded in the audit log.
 
@@ -42,22 +42,24 @@ Targets `refs/tags/v*`. Blocks update, deletion, and force push.
 
 ## Required checks
 
-A required status check must be reported by a job that the repository runs. A required check with no job never reports, so every pull request waits on it forever. The required set follows the repository's kind.
+A required status check must be reported by a job that the repository runs. A required check with no job never reports, so every pull request waits on it forever. The required set follows the repository's coverage job.
 
-- A **code** repository has executable code under test. It calls the shared `coverage` workflow, defines the `coverage` recipe, and requires `coverage / coverage`.
-- A **records** repository has no executable code under test. Its records, documents, configuration, or composition are the product. It does not call the coverage workflow and does not require `coverage / coverage`.
+A repository has one of two coverage states.
 
-Both kinds require `lint / flint`, `aislop / aislop`, `security / trivy`, `security / secrets`, `standard / standard`, and `test`. A repository may add a second test job named `test-<suffix>` and require it once it is stable. See [testing.md](testing.md).
+- **Covered.** The repository has a coverage job. It calls the shared `coverage` workflow, defines the `coverage` recipe, and requires `coverage / coverage`. Covered is the default: a repository is covered unless it has an entry, below.
+- **Uncovered.** The repository has no coverage job and does not require `coverage / coverage`. The repository declares this with an entry in [`exceptions.json`](exceptions.json) on the check id `ci/coverage`. The entry's reason says which of two cases applies:
+  - **Records.** The repository has no executable code under test. Its records, documents, configuration, or composition are the product. Its tests, if any, check its own records.
+  - **Not measurable.** The repository has code under test, but the shared coverage workflow cannot measure all of it. The reason names the part it cannot measure. An entry of this kind should be revisited when the repository gains code the workflow can measure.
 
-A repository declares itself records with an entry in [`exceptions.json`](exceptions.json) on the check id `ci/coverage`, and a reason that names what the repository holds. The entry is the declaration. A repository with no such entry is code.
+Covered and uncovered repositories both require `lint / flint`, `aislop / aislop`, `security / trivy`, `security / secrets`, `standard / standard`, and `test`. A repository may add a second test job named `test-<suffix>` and require it once it is stable. See [testing.md](testing.md).
 
 The checker enforces the rule. Each gap prints its id.
 
-- `ci/coverage` (`check-standard`): ci.yml has no `coverage` job. `check-standard` cannot read exceptions, so a records repository shows this gap until `check-repo` applies its entry.
-- `ci/coverage-unrequired` (`check-repo`): a records repository calls the coverage workflow.
-- `ruleset/required-missing`, `ruleset/required-no-job`, and `ruleset/required-unexpected` (`check-repo` with the API, on a public repository): the live `protect-main` requires a set other than the one the kind expects, or requires a check that no job reports.
+- `ci/coverage` (`check-standard`): ci.yml has no `coverage` job. `check-standard` cannot read exceptions, so an uncovered repository shows this gap until `check-repo` applies its entry.
+- `ci/coverage-unrequired` (`check-repo`): an uncovered repository calls the coverage workflow.
+- `ruleset/required-missing`, `ruleset/required-no-job`, and `ruleset/required-unexpected` (`check-repo` with the API, on a public repository): the live `protect-main` requires a set other than the one the repository expects, or requires a check that no job reports.
 
-The apply script builds each repository's payload from the committed file. It adds `coverage / coverage` for a code repository and removes it for a records repository.
+The apply script builds each repository's payload from the committed file. It adds `coverage / coverage` for a covered repository and removes it for an uncovered one.
 
 ## Code owners and reviewers
 
@@ -97,4 +99,4 @@ The apply script adds one more entry per repository, for the fleet agent's GitHu
 | `merge` | Mode `pull_request`. |
 | `full` | Mode `always`, because a `full` repository pushes to `main` directly. |
 
-The committed file names no actor id for the App. A live ruleset is the base, plus `coverage / coverage` for a code repository (see [Required checks](#required-checks)), plus the App entry for its level.
+The committed file names no actor id for the App. A live ruleset is the base, plus `coverage / coverage` for a covered repository (see [Required checks](#required-checks)), plus the App entry for its level.

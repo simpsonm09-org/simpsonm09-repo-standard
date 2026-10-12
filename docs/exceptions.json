@@ -9,13 +9,25 @@
     {
       "repo": "simpsonm09-org/simpsonm09-repo-catalog",
       "checks": ["ci/coverage"],
-      "reason": "Records only. The roster and policy live in repos.json, and scripts/validate.mjs checks them. The repository has no code under test, so it has no coverage job and does not require coverage / coverage. See docs/governance.md, Required checks.",
+      "reason": "Records, with no executable code under test. The roster and policy live in repos.json. The only script, scripts/validate.mjs, validates those records and is the repository's test. See docs/governance.md, Required checks.",
       "date": "2026-10-12"
     },
     {
       "repo": "simpsonm09-org/simpsonm09-machine-inventory",
       "checks": ["ci/coverage"],
-      "reason": "Records only. The machine records live in machines/, and the validator and renderer in scripts/ check and render them. The repository has no code under test, so it has no coverage job and does not require coverage / coverage. See docs/governance.md, Required checks.",
+      "reason": "Records, with tests for its own validators and renderers only. The machine records live in machines/. scripts/test.mjs tests the validators in scripts/lib/inventory.mjs and the renderer in scripts/render.mjs. The collect scripts are not under test. See docs/governance.md, Required checks.",
+      "date": "2026-10-12"
+    },
+    {
+      "repo": "simpsonm09-org/simpsonm09-maxstack",
+      "checks": ["ci/coverage"],
+      "reason": "Not measurable by the shared coverage workflow, in part. The installer is PowerShell, about 5,900 lines in scripts/*.ps1, and the Node suite runs it as a subprocess on the Windows test-node job. The Node code is also run through subprocesses. The shared line gate does not instrument the installer. Revisit when the installer has a test path the workflow can measure. See docs/governance.md, Required checks.",
+      "date": "2026-10-12"
+    },
+    {
+      "repo": "simpsonm09-org/simpsonm09-dev-setup",
+      "checks": ["ci/coverage"],
+      "reason": "Not measurable by the shared coverage workflow, in part. The setup code is about 930 lines of PowerShell and about 820 lines of bash. The suite runs two PowerShell scripts, agent-vault/with-secrets.ps1 and apply-tools.ps1, and some bash, but no test runs the rest. The Node modules the suite imports are measurable, but the shared line gate does not measure the setup scripts. Revisit when the setup scripts have tests the workflow can measure. See docs/governance.md, Required checks.",
       "date": "2026-10-12"
     },
     {

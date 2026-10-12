@@ -98,8 +98,8 @@ function checkCi(root, add) {
 
   for (const job of SHARED_JOBS) checkSharedJob(job, jobs, EXTERNAL_WORKFLOW, LOCAL_WORKFLOW, isSelf, add);
 
-  // A code repository reports coverage / coverage. A repository without code under
-  // test records that as an exception, which check-repo applies.
+  // A repository with a coverage job reports coverage / coverage. A repository
+  // without one declares that as an exception, which check-repo applies.
   if (!jobs.has('coverage')) add('ci/coverage', COVERAGE_MISSING_MESSAGE);
   else checkSharedJob('coverage', jobs, EXTERNAL_WORKFLOW, LOCAL_WORKFLOW, isSelf, add);
 
