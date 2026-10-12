@@ -13,7 +13,7 @@ repository path and prints a compact matrix of nine tree-local groups.
 | --- | --- |
 | `files` | The required paths exist, including `.github/ISSUE_TEMPLATE/`. |
 | `mise` | `mise.toml` pins `aqua:casey/just`. |
-| `ci` | `ci.yml` calls `lint`, `aislop`, `security`, and `standard` at a pinned 40-character SHA, and defines a `test` job that runs on a runner. |
+| `ci` | `ci.yml` calls `lint`, `aislop`, `security`, `standard`, and `coverage` at a pinned 40-character SHA, and defines a `test` job that runs on a runner. A repository without a coverage job is excepted on `ci/coverage` in `check-repo`, and the exception gives the reason. |
 | `dependabot` | `.github/dependabot.yml` declares version 2, a scheduled ecosystem, and no inline credential. |
 | `community` | The byte-identical community files match the pinned standard. |
 | `docs` | The [documentation layout](../documentation.md) holds. |
@@ -60,7 +60,7 @@ The API groups are `settings` and `ruleset`.
 
 - `settings` requires the default branch to be `main`, the description to be set, and
   the owner topic to be present.
-- `ruleset` requires `protect-main` on a public repository.
+- `ruleset` requires `protect-main` on a public repository, and requires its required checks to match the repository's coverage state. Each required check needs a job in `ci.yml`. The rule is in [governance.md](../governance.md#required-checks).
 
 A repository cannot read its own secret scanning, push protection, or merge methods
 with its own token, so those are applied once and not audited. See

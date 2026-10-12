@@ -55,6 +55,10 @@ test-subprocess:
 test-env:
     {{op}} run test-env
 
+# Run the required-check rule tests over fixtures and the check-standard and check-repo matrices.
+test-required:
+    {{op}} run test-required
+
 # Run the local CI mirror: lint, test, aislop, security, and secret scan.
 verify:
     {{op}} run verify

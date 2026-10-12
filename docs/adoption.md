@@ -4,7 +4,7 @@ Do these steps once per repository.
 
 ## 1. Add the caller workflow
 
-Copy [`templates/caller-ci.yml`](../templates/caller-ci.yml) to `.github/workflows/ci.yml` in the consuming repository. It calls the reusable lint, aislop, security, and standard workflows.
+Copy [`templates/caller-ci.yml`](../templates/caller-ci.yml) to `.github/workflows/ci.yml` in the consuming repository. It calls the reusable lint, aislop, security, and standard workflows. A repository with a coverage job also calls the coverage workflow. A repository without one declares its reason in [`exceptions.json`](exceptions.json) on `ci/coverage`, as described in [governance.md](governance.md#required-checks).
 
 The `standard` job runs [`check-repo.mjs`](../scripts/check-repo.mjs) for the repository and applies [`exceptions.json`](exceptions.json) from the pinned standard. It checks the tree-local groups on the pull request. See [`features/fleet-conformance.md`](features/fleet-conformance.md).
 
@@ -15,6 +15,12 @@ gh api repos/simpsonm09-org/simpsonm09-repo-standard/commits/main --jq .sha
 ```
 
 The pin-update workflow reports when the pin falls behind.
+
+The trailing comment on each pinned line names what the line pins. For this standard it is `# repo-standard, pinned commit`, because the line pins a commit, not the `main` branch:
+
+```yaml
+uses: simpsonm09-org/simpsonm09-repo-standard/.github/workflows/lint.yml@<sha> # repo-standard, pinned commit
+```
 
 Run this workflow in the upstream repository. The fleet rule is that a personal fork runs no Actions, and the upstream repository runs the caller on pushes to `main` and on pull requests. Disable Actions on every personal fork, in its Settings under Actions and General, or with `gh api -X PUT repos/<owner>/<repo>/actions/permissions -F enabled=false`.
 
@@ -120,3 +126,4 @@ A repository copies the workflows it needs from `templates/`. See [`automation.m
 - Dependency and Action updates come from Dependabot. Add [`.github/dependabot.yml`](../templates/dependabot.yml) from the template; the organization enables alerts and security updates. See [`automation.md`](automation.md).
 - Labels come from [`../templates/workflows/labeler.yml`](../templates/workflows/labeler.yml) and [`../templates/labeler.yml`](../templates/labeler.yml). Create the labels before the workflow runs.
 - Releases come from [`../templates/workflows/release.yml`](../templates/workflows/release.yml), which creates a release with generated notes when a `v*` tag is pushed.
+- CodeQL comes from [`../templates/workflows/codeql.yml`](../templates/workflows/codeql.yml), for a repository with executable source in a language CodeQL supports. It is not a required check. See [automation.md](automation.md#codeql).

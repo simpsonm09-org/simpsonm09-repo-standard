@@ -1,10 +1,14 @@
 #!/usr/bin/env node
-import { dirname, resolve } from 'node:path';
+import { existsSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { EXIT } from './lib/exit.mjs';
 import { capture, isMain } from './lib/proc.mjs';
 import { checkStandard } from './check-standard.mjs';
 import { loadExceptions, findException } from './lib/exceptions.mjs';
+import { jobsCalling, parseJobs } from './lib/ci.mjs';
+import { normalize, readText } from './lib/tree.mjs';
+import { kindOf, rulesetGaps, uncoveredCallGaps } from './lib/required.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const STANDARD_ROOT = resolve(HERE, '..');
@@ -54,7 +58,7 @@ function ghJson(args) {
   }
 }
 
-function checkApi(repo, add, notice) {
+function checkApi(repo, add, notice, ci) {
   const meta = ghJson(['api', `repos/${repo}`]);
   if (!meta.ok) {
     notice(`cannot read ${repo} settings: ${meta.error}`);
@@ -70,10 +74,10 @@ function checkApi(repo, add, notice) {
   else if (!(topics.value?.names ?? []).includes(owner)) add('settings/topics', `topics do not include the owner "${owner}"`);
 
   if (value.visibility !== 'public') return;
-  checkPublicRuleset(repo, add, notice);
+  checkPublicRuleset(repo, add, notice, ci);
 }
 
-function checkPublicRuleset(repo, add, notice) {
+function checkPublicRuleset(repo, add, notice, ci) {
   const rulesets = ghJson(['api', '--paginate', `repos/${repo}/rulesets`, '--jq', '[.[] | select(.name=="protect-main")] | length']);
   if (!rulesets.ok) {
     notice(`cannot read ${repo} rulesets: ${rulesets.error}`);
@@ -83,10 +87,10 @@ function checkPublicRuleset(repo, add, notice) {
     add('ruleset/protect-main', 'public repository has no protect-main ruleset');
     return;
   }
-  checkRulesetApprovals(repo, add, notice);
+  checkRulesetApprovals(repo, add, notice, ci);
 }
 
-function checkRulesetApprovals(repo, add, notice) {
+function checkRulesetApprovals(repo, add, notice, ci) {
   const id = ghJson(['api', `repos/${repo}/rulesets`, '--jq', '.[] | select(.name=="protect-main") | .id']);
   if (!id.ok) {
     notice(`cannot read the protect-main id: ${id.error}`);
@@ -100,6 +104,12 @@ function checkRulesetApprovals(repo, add, notice) {
   const rule = (detail.value.rules ?? []).find((entry) => entry.type === 'pull_request');
   const count = rule?.parameters?.required_approving_review_count;
   if (count !== 1) add('ruleset/approval', `protect-main requires ${count ?? 'no'} approving review, expected 1`);
+  for (const gap of rulesetGaps(detail.value, ci)) add(gap.id, gap.message);
+}
+
+function readJobs(root) {
+  const file = join(root, '.github/workflows/ci.yml');
+  return existsSync(file) ? parseJobs(normalize(readText(file))) : new Map();
 }
 
 function groupOf(id) {
@@ -121,21 +131,26 @@ function main() {
 
   const root = resolve(options.root ?? '.');
   const repo = options.repo ?? deriveRepo(root);
+  const exceptions = loadExceptionsOrExit();
+  const kind = kindOf(exceptions, repo);
+  const jobs = readJobs(root);
   const result = checkStandard(root);
   const gaps = [...result.gaps];
   const notices = [];
   const notice = (message) => notices.push(message);
 
-  if (options.api && repo) runApiChecks(repo, gaps, notice);
+  const callsCoverage = jobsCalling(jobs, 'coverage', root === STANDARD_ROOT).length > 0;
+  gaps.push(...uncoveredCallGaps(kind, callsCoverage));
 
-  const exceptions = loadExceptionsOrExit();
+  if (options.api && repo) runApiChecks(repo, gaps, notice, { kind, jobs });
+
   const { open, excepted } = partitionGaps(gaps, repo, exceptions);
   report(root, repo, open, excepted, notices);
   process.exit(open.length === 0 ? EXIT.OK : EXIT.FAIL);
 }
 
-function runApiChecks(repo, gaps, notice) {
-  if (capture('gh', ['--version']).status === 0) checkApi(repo, (id, message) => gaps.push({ id, message }), notice);
+function runApiChecks(repo, gaps, notice, ci) {
+  if (capture('gh', ['--version']).status === 0) checkApi(repo, (id, message) => gaps.push({ id, message }), notice, ci);
   else notice('gh is not on PATH, so the API checks are skipped');
 }
 

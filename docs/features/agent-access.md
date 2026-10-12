@@ -165,8 +165,11 @@ Move it into Infisical, where the runtime loads it as `AGENT_APP_PRIVATE_KEY` be
 `AGENT_APP_ID`.
 
 The installation is the per-repository grant. `none` and `read` get no installation.
-`propose`, `merge`, and `full` get one. `merge` adds the app to the ruleset bypass
-list with mode `pull_request`, and `full` with mode `always`.
+`propose`, `merge`, and `full` get one. `merge` adds the fleet agent's GitHub App
+integration to the ruleset bypass list with mode `pull_request`, and `full` with mode
+`always`. The committed `rulesets/protect-main.json` is the base. The apply script adds
+this entry per repository, according to its level. No actor id is written in the
+repository. See [governance](../governance.md#bypass-actors).
 
 ## The token broker
 

@@ -8,6 +8,8 @@ import { checkScripting } from './lib/scripting.mjs';
 import { checkEnv } from './lib/env.mjs';
 import { checkSubprocess } from './lib/subprocess.mjs';
 import { checkDocs, hasCoverageRecipe } from './lib/docs.mjs';
+import { EXTERNAL_WORKFLOW, LOCAL_WORKFLOW, findUses, jobsCalling, parseJobs } from './lib/ci.mjs';
+import { COVERAGE_MISSING_MESSAGE } from './lib/required.mjs';
 import { normalize, readText } from './lib/tree.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -45,7 +47,7 @@ export const COMMUNITY_PATHS = [
   '.github/ISSUE_TEMPLATE/config.yml',
 ];
 
-const SHARED_JOBS = ['lint', 'aislop', 'security'];
+const SHARED_JOBS = ['lint', 'aislop', 'security', 'standard'];
 const STANDARD_REPO = 'simpsonm09-org/simpsonm09-repo-standard';
 const SHA_PATTERN = /^[0-9a-fA-F]{40}$/;
 const GROUPS = ['files', 'mise', 'ci', 'dependabot', 'community', 'docs', 'scripting', 'env', 'subprocess'];
@@ -53,39 +55,6 @@ const GROUPS = ['files', 'mise', 'ci', 'dependabot', 'community', 'docs', 'scrip
 function groupOf(id) {
   const slash = id.indexOf('/');
   return slash === -1 ? id : id.slice(0, slash);
-}
-
-function parseJobs(text) {
-  const jobs = new Map();
-  let inJobs = false;
-  let current = null;
-  for (const line of text.split('\n')) {
-    if (/^jobs:\s*$/.test(line)) {
-      inJobs = true;
-      continue;
-    }
-    if (!inJobs) continue;
-    if (/^\S/.test(line)) {
-      inJobs = false;
-      continue;
-    }
-    const match = /^ {2}([A-Za-z0-9_.-]+):\s*$/.exec(line);
-    if (match) {
-      current = match[1];
-      jobs.set(current, []);
-      continue;
-    }
-    if (current) jobs.get(current).push(line);
-  }
-  return jobs;
-}
-
-function findUses(block) {
-  for (const line of block) {
-    const match = /^\s+uses:\s*(\S+)/.exec(line);
-    if (match) return match[1].replace(/['"]/g, '');
-  }
-  return null;
 }
 
 function checkFiles(root, add) {
@@ -126,12 +95,15 @@ function checkCi(root, add) {
   const text = normalize(readText(file));
   const jobs = parseJobs(text);
   const isSelf = root === STANDARD_ROOT;
-  const external = /^simpsonm09-org\/simpsonm09-repo-standard\/\.github\/workflows\/([a-z0-9-]+)\.yml@([0-9a-fA-F]{40})$/;
-  const local = /^\.\/\.github\/workflows\/([a-z0-9-]+)\.yml$/;
 
-  for (const job of SHARED_JOBS) checkSharedJob(job, jobs, external, local, isSelf, add);
+  for (const job of SHARED_JOBS) checkSharedJob(job, jobs, EXTERNAL_WORKFLOW, LOCAL_WORKFLOW, isSelf, add);
 
-  if (callsCoverage(jobs, external, local, isSelf) && !hasCoverageRecipe(root)) {
+  // A repository with a coverage job reports coverage / coverage. A repository
+  // without one declares that as an exception, which check-repo applies.
+  if (!jobs.has('coverage')) add('ci/coverage', COVERAGE_MISSING_MESSAGE);
+  else checkSharedJob('coverage', jobs, EXTERNAL_WORKFLOW, LOCAL_WORKFLOW, isSelf, add);
+
+  if (jobsCalling(jobs, 'coverage', isSelf).length > 0 && !hasCoverageRecipe(root)) {
     add('ci/coverage-recipe', 'ci.yml calls the shared coverage workflow but justfile has no "coverage" recipe');
   }
 
@@ -162,17 +134,6 @@ function checkSharedJob(job, jobs, external, local, isSelf, add) {
   } else {
     add(`ci/${job}`, `job "${job}" is not pinned to a 40-char repo-standard SHA (uses: ${uses})`);
   }
-}
-
-function callsCoverage(jobs, external, local, isSelf) {
-  for (const block of jobs.values()) {
-    const uses = findUses(block);
-    if (!uses) continue;
-    const externalMatch = external.exec(uses);
-    const localMatch = local.exec(uses);
-    if (externalMatch?.[1] === 'coverage' || (isSelf && localMatch?.[1] === 'coverage')) return true;
-  }
-  return false;
 }
 
 function checkPins(text, add) {

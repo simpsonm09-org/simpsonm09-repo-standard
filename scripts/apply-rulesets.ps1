@@ -55,7 +55,7 @@ foreach ($line in (& gh api "repos/$Repo/rulesets" --jq '.[] | [.id, .name] | @t
 }
 
 foreach ($file in Get-ChildItem -LiteralPath $rulesetDir -Filter '*.json') {
-    $payloadArgs = @($file.FullName, '--level', $level)
+    $payloadArgs = @($file.FullName, '--level', $level, '--repo', $Repo)
     if (-not [string]::IsNullOrWhiteSpace($appId)) { $payloadArgs += @('--app-id', $appId) }
     $payloadFile = [System.IO.Path]::GetTempFileName()
     & node (Join-Path $repoRoot 'scripts/ruleset-payload.mjs') @payloadArgs | Set-Content -LiteralPath $payloadFile
