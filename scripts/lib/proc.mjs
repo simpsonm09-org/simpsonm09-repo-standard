@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process';
-import { statSync } from 'node:fs';
-import { delimiter, extname, join } from 'node:path';
+import * as nativeFs from 'node:fs';
+import { constants } from 'node:fs';
+import { posix, win32 } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const IS_WINDOWS = process.platform === 'win32';
@@ -10,21 +11,44 @@ export function isMain(metaUrl) {
   return entry ? metaUrl === pathToFileURL(entry).href : false;
 }
 
-export function which(command) {
-  const pathExts = IS_WINDOWS
-    ? (process.env.PATHEXT ?? '.COM;.EXE;.BAT;.CMD').split(';').filter(Boolean)
-    : [''];
-  const hasExtension = extname(command) !== '';
-  for (const dir of (process.env.PATH ?? '').split(delimiter)) {
-    if (!dir) continue;
-    for (const ext of hasExtension ? [''] : pathExts) {
-      const candidate = join(dir, command + ext);
-      try {
-        if (statSync(candidate).isFile()) return candidate;
-      } catch {
-        // Unreadable or missing path, keep looking.
-      }
+function isUsableCandidate(candidate, platform, fs) {
+  try {
+    return fs.statSync(candidate).isFile();
+  } catch (error) {
+    if (platform !== 'win32' || error.code !== 'EACCES') return false;
+    try {
+      if (!fs.lstatSync(candidate).isSymbolicLink()) return false;
+      fs.accessSync(candidate, constants.X_OK);
+      return true;
+    } catch {
+      // A missing, inaccessible, or unusable alias is not on PATH.
+      return false;
     }
+  }
+}
+
+function findInDirectory(dir, command, extensions, platform, fs) {
+  if (!dir) return null;
+  const path = platform === 'win32' ? win32 : posix;
+  for (const ext of extensions) {
+    const candidate = path.join(dir, command + ext);
+    if (isUsableCandidate(candidate, platform, fs)) return candidate;
+  }
+  return null;
+}
+
+export function which(command, options = {}) {
+  const platform = options.platform ?? process.platform;
+  const env = options.env ?? process.env;
+  const fs = options.fs ?? nativeFs;
+  const pathExts = platform === 'win32'
+    ? (env.PATHEXT ?? '.COM;.EXE;.BAT;.CMD').split(';').filter(Boolean)
+    : [''];
+  const path = platform === 'win32' ? win32 : posix;
+  const extensions = path.extname(command) ? [''] : pathExts;
+  for (const dir of (env.PATH ?? '').split(platform === 'win32' ? ';' : ':')) {
+    const candidate = findInDirectory(dir, command, extensions, platform, fs);
+    if (candidate) return candidate;
   }
   return null;
 }

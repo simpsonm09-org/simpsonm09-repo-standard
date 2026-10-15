@@ -51,6 +51,10 @@ test-scripting:
 test-subprocess:
     {{op}} run test-subprocess
 
+# Run the process PATH discovery tests without launching discovered commands.
+test-proc:
+    {{op}} run test-proc
+
 # Run the env convention rule tests over fixtures.
 test-env:
     {{op}} run test-env
