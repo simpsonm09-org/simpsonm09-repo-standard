@@ -74,6 +74,12 @@
       "description": "Run the subprocess windowsHide rule tests over fixtures and the check-standard and check-repo matrices."
     },
     {
+      "id": "test-proc",
+      "kind": "portable",
+      "run": "node scripts/proc.test.mjs",
+      "description": "Run the process PATH discovery tests without launching discovered commands."
+    },
+    {
       "id": "test-env",
       "kind": "portable",
       "run": "node scripts/env.test.mjs",

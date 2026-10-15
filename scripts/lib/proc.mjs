@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { statSync } from 'node:fs';
+import { accessSync, constants, lstatSync, statSync } from 'node:fs';
 import { delimiter, extname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -21,7 +21,17 @@ export function which(command) {
       const candidate = join(dir, command + ext);
       try {
         if (statSync(candidate).isFile()) return candidate;
-      } catch {
+      } catch (error) {
+        if (IS_WINDOWS && error.code === 'EACCES') {
+          try {
+            if (lstatSync(candidate).isSymbolicLink()) {
+              accessSync(candidate, constants.X_OK);
+              return candidate;
+            }
+          } catch {
+            // A missing, inaccessible, or unusable alias is not on PATH.
+          }
+        }
         // Unreadable or missing path, keep looking.
       }
     }
