@@ -7,6 +7,66 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { isMain, which } from './lib/proc.mjs';
 
+function fakeFileSystem(entries) {
+  const lookup = (candidate) => {
+    if (!(candidate in entries)) {
+      const error = new Error('not found');
+      error.code = 'ENOENT';
+      throw error;
+    }
+    const entry = entries[candidate];
+    if (entry.statError) throw entry.statError;
+    return { isFile: () => entry.file === true };
+  };
+  return {
+    statSync: lookup,
+    lstatSync(candidate) {
+      const entry = entries[candidate];
+      if (!entry) {
+        const error = new Error('not found');
+        error.code = 'ENOENT';
+        throw error;
+      }
+      return { isSymbolicLink: () => entry.symlink === true };
+    },
+    accessSync(candidate, mode) {
+      const entry = entries[candidate];
+      if (!entry?.accessible || mode !== constants.X_OK) {
+        const error = new Error('inaccessible');
+        error.code = 'EACCES';
+        throw error;
+      }
+    },
+  };
+}
+
+function testLookupResults(check) {
+  const fs = fakeFileSystem({
+    '/first/tool': { file: true },
+    '/second/tool': { file: true },
+    '/second/tool.exe': { file: true },
+  });
+  const posix = { platform: 'linux', env: { PATH: '/first:/second' }, fs };
+  check(which('tool', posix), '/first/tool', 'the first matching PATH entry wins');
+  check(which('tool', { ...posix, env: { PATH: '' }, fs: fakeFileSystem({ tool: { file: true } }) }), null, 'an empty PATH entry is ignored');
+  check(which('tool.exe', { ...posix, env: { PATH: '/first:/second' } }), '/second/tool.exe', 'an explicit extension is used as written');
+}
+
+function testWindowsAliasDecisions(check) {
+  const alias = 'C:\\Apps\\pwsh.exe';
+  const windows = { platform: 'win32', env: { PATH: 'C:\\Apps', PATHEXT: '.exe' } };
+  check(which('pwsh.exe', { ...windows, fs: fakeFileSystem({ [alias]: { file: true } }) }), alias,
+    'an explicit Windows extension is searched as written');
+  check(which('pwsh', { ...windows, fs: fakeFileSystem({ [alias]: { statError: Object.assign(new Error('denied'), { code: 'EACCES' }), symlink: true, accessible: true } }) }), alias,
+    'an accessible Windows symlink alias is discoverable after stat EACCES');
+  check(which('pwsh', { ...windows, fs: fakeFileSystem({ [alias]: { statError: Object.assign(new Error('denied'), { code: 'EACCES' }), file: true, accessible: true } }) }), null,
+    'a Windows EACCES regular file is not accepted as an alias');
+  check(which('pwsh', { ...windows, fs: fakeFileSystem({ [alias]: { statError: Object.assign(new Error('denied'), { code: 'EACCES' }), symlink: true } }) }), null,
+    'an inaccessible Windows symlink alias is not discoverable');
+  check(which('pwsh', { ...windows, fs: fakeFileSystem({ [alias]: { statError: Object.assign(new Error('io'), { code: 'EIO' }), symlink: true, accessible: true } }) }), null,
+    'a non-EACCES stat error does not use alias fallback');
+}
+
 function testPathCandidates(check, root) {
   const executable = process.platform === 'win32' ? 'candidate.exe' : 'candidate';
   mkdirSync(join(root, executable));
@@ -54,6 +114,8 @@ export function runTest() {
   };
 
   try {
+    testLookupResults(check);
+    testWindowsAliasDecisions(check);
     testPathCandidates(check, root);
     const aliasStatus = testStoreAlias(check);
     process.stdout.write(`proc.test: ok (${assertions} assertions; Store alias ${aliasStatus})\n`);
