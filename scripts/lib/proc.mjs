@@ -10,31 +10,39 @@ export function isMain(metaUrl) {
   return entry ? metaUrl === pathToFileURL(entry).href : false;
 }
 
+function isUsableCandidate(candidate) {
+  try {
+    return statSync(candidate).isFile();
+  } catch (error) {
+    if (!IS_WINDOWS || error.code !== 'EACCES') return false;
+    try {
+      if (!lstatSync(candidate).isSymbolicLink()) return false;
+      accessSync(candidate, constants.X_OK);
+      return true;
+    } catch {
+      // A missing, inaccessible, or unusable alias is not on PATH.
+      return false;
+    }
+  }
+}
+
+function findInDirectory(dir, command, extensions) {
+  if (!dir) return null;
+  for (const ext of extensions) {
+    const candidate = join(dir, command + ext);
+    if (isUsableCandidate(candidate)) return candidate;
+  }
+  return null;
+}
+
 export function which(command) {
   const pathExts = IS_WINDOWS
     ? (process.env.PATHEXT ?? '.COM;.EXE;.BAT;.CMD').split(';').filter(Boolean)
     : [''];
-  const hasExtension = extname(command) !== '';
+  const extensions = extname(command) ? [''] : pathExts;
   for (const dir of (process.env.PATH ?? '').split(delimiter)) {
-    if (!dir) continue;
-    for (const ext of hasExtension ? [''] : pathExts) {
-      const candidate = join(dir, command + ext);
-      try {
-        if (statSync(candidate).isFile()) return candidate;
-      } catch (error) {
-        if (IS_WINDOWS && error.code === 'EACCES') {
-          try {
-            if (lstatSync(candidate).isSymbolicLink()) {
-              accessSync(candidate, constants.X_OK);
-              return candidate;
-            }
-          } catch {
-            // A missing, inaccessible, or unusable alias is not on PATH.
-          }
-        }
-        // Unreadable or missing path, keep looking.
-      }
-    }
+    const candidate = findInDirectory(dir, command, extensions);
+    if (candidate) return candidate;
   }
   return null;
 }
