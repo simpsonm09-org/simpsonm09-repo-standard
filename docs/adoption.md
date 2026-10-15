@@ -8,15 +8,9 @@ Copy [`templates/caller-ci.yml`](../templates/caller-ci.yml) to `.github/workflo
 
 The `standard` job runs [`check-repo.mjs`](../scripts/check-repo.mjs) for the repository and applies [`exceptions.json`](exceptions.json) from the pinned standard. It checks the tree-local groups on the pull request. See [`features/fleet-conformance.md`](features/fleet-conformance.md).
 
-Pin the `uses:` references to a commit SHA of this repository rather than `@main` for a stable supply chain. The pin in [`templates/caller-ci.yml`](../templates/caller-ci.yml) is a last-known-good example. Set it to the standard's current `main` at copy time:
+The caller template pins each reusable workflow to a reviewed, published revision of this standard. When you copy the template or roll it out to a consuming repository, replace its pin with the full SHA of the published standard revision you reviewed. Keep that SHA fixed until you review and adopt a later revision. Do not chase `main` on every change. The pin-update workflow reports when a newer revision is available; review that update before changing the pin.
 
-```bash
-gh api repos/simpsonm09-org/simpsonm09-repo-standard/commits/main --jq .sha
-```
-
-The pin-update workflow reports when the pin falls behind.
-
-The trailing comment on each pinned line names what the line pins. For this standard it is `# repo-standard, pinned commit`, because the line pins a commit, not the `main` branch:
+The trailing comment on each pinned line names what the line pins:
 
 ```yaml
 uses: simpsonm09-org/simpsonm09-repo-standard/.github/workflows/lint.yml@<sha> # repo-standard, pinned commit
