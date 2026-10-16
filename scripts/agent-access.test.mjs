@@ -15,14 +15,31 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isMain } from './lib/proc.mjs';
-import { CAPABILITIES, decide, loadCatalog, resolveLevel } from './agent-access.mjs';
+import {
+  CAPABILITIES,
+  CAPABILITIES_BY_KIND,
+  classify,
+  decide,
+  decideTarget,
+  loadCatalog,
+  loadCommittedOwnedForks,
+  resolveDestination,
+  resolveLevel,
+  resolveOwnedFork,
+} from './agent-access.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
 const RESOLVER = join(HERE, 'agent-access.mjs');
 const FIXTURE_CATALOG = join(HERE, 'fixtures', 'agent-access', 'repos.json');
+const FIXTURE_OWNED_FORKS = join(HERE, 'fixtures', 'agent-access', 'owned-forks.json');
 const HOOK_TEMPLATE = join(ROOT, 'templates', 'hooks', 'pre-push');
 const EXIT = Object.freeze({ OK: 0, FAIL: 1, USAGE: 2 });
+
+// The owned-fork fixture, as the resolver reads it. The pure policy tests use it
+// directly; the loader tests commit it to a throwaway catalog clone.
+const OWNED_FORKS = JSON.parse(readFileSync(FIXTURE_OWNED_FORKS, 'utf8'));
+const [OWNED_ENTRY] = OWNED_FORKS.forks;
 
 // Each fixture repository and the exact level its catalog entry declares. The
 // catalog is a fixture, so the live roster is never read.
@@ -90,6 +107,263 @@ function testDecisionLayer(assert) {
   for (const { command, capability } of COMMANDS) {
     if (capability === null) continue;
     assert(decide(read, command).allowed === false, `read denies every remote write (${command})`);
+  }
+}
+
+// The api method classifier. gh names the HTTP method after -X, after --method,
+// in a --method=... form, or attached to the short flag (-XDELETE), and the
+// attached form is the one the earlier token parser missed. A read method, a bare
+// -X, and a token that merely starts with -X but is not a method stay reads.
+function testMethodClassifier(assert) {
+  const cases = [
+    ['gh api -X GET repos/o/r', null],
+    ['gh api -XGET repos/o/r', null],
+    ['gh api -X HEAD repos/o/r', null],
+    ['gh api -XHEAD repos/o/r', null],
+    ['gh api repos/o/r', null],
+    ['gh api -X', null],
+    ['gh api -XPOSTED repos/o/r', null],
+    ['gh api --method GET repos/o/r', null],
+    ['gh api -X POST repos/o/r', 'admin'],
+    ['gh api -XPOST repos/o/r', 'admin'],
+    ['gh api -X PATCH repos/o/r', 'admin'],
+    ['gh api -XPATCH repos/o/r', 'admin'],
+    ['gh api -X PUT repos/o/r', 'admin'],
+    ['gh api -XPUT repos/o/r', 'admin'],
+    ['gh api -X DELETE repos/o/r', 'admin'],
+    ['gh api -XDELETE repos/o/r', 'admin'],
+    ['gh api -Xdelete repos/o/r', 'admin'],
+    ['gh api --method POST repos/o/r', 'admin'],
+    ['gh api --method=POST repos/o/r', 'admin'],
+  ];
+  for (const [command, expected] of cases) {
+    const capability = classify(command);
+    assert(capability === expected, `classify ${JSON.stringify(command)} -> ${expected}, got ${capability}`);
+  }
+  const read = decide('read', 'gh api -XDELETE repos/o/r');
+  assert(read.allowed === false && read.capability === 'admin', 'a read level denies the attached write method');
+  const full = decide('full', 'gh api -XDELETE repos/o/r');
+  assert(full.allowed === true && full.capability === 'admin', 'a full level allows the attached write method');
+}
+
+// Level one, destination half: one policy truth governs the organization
+// repository and its personal push fork, the owned fork is a strict subset, and
+// an upstream or an unknown destination gets reads only.
+function testDestinationPolicy(assert) {
+  const roster = loadCatalog(FIXTURE_CATALOG);
+  const nest = 'simpsonm09-fixture-nest';
+  const dotnet = 'simpsonm09-fixture-dotnet';
+  const at = (localRepo, destination, host = 'github.com') =>
+    resolveDestination({ roster, ownedForks: OWNED_FORKS, localRepo, host, destination });
+
+  const recognized = [
+    { name: 'the organization repository', local: nest, destination: `simpsonm09-org/${nest}`, kind: 'org', level: 'propose', source: 'org' },
+    { name: 'a differently cased organization repository', local: nest, destination: 'SimpsonM09-Org/SimpsonM09-Fixture-Nest', kind: 'org', level: 'propose', source: 'org' },
+    { name: 'the personal push fork of a propose repository', local: nest, destination: `simpsonm09/${nest}`, kind: 'org', level: 'propose', source: 'personal-fork' },
+    { name: 'the personal push fork of a read repository', local: dotnet, destination: `simpsonm09/${dotnet}`, kind: 'org', level: 'read', source: 'personal-fork' },
+    { name: 'an owned fork', local: 'pstack-max', destination: OWNED_ENTRY.repository, kind: 'owned-fork', level: 'propose', source: 'owned-fork' },
+    { name: 'a recorded upstream', local: 'pstack-max', destination: OWNED_ENTRY.upstream, kind: 'upstream', level: 'none', source: 'upstream' },
+  ];
+  for (const { name, local, destination, kind, level, source } of recognized) {
+    const target = at(local, destination);
+    assert(target.kind === kind, `${name} resolves to ${kind}, got ${target.kind}`);
+    assert(target.level === level && target.source === source, `${name} resolves to ${level} from ${source}`);
+  }
+
+  const unknown = [
+    { name: 'a third-party repository named like a governed repository', local: nest, destination: `acme/${nest}` },
+    { name: "another governed repository's fork", local: nest, destination: 'simpsonm09/simpsonm09-fixture-go' },
+    { name: 'an unrelated third party', local: nest, destination: 'acme/unrelated' },
+    { name: 'another host', local: nest, destination: `simpsonm09-org/${nest}`, host: 'gitlab.com' },
+    { name: 'an unlisted organization repository', local: nest, destination: 'simpsonm09-org/not-listed' },
+    { name: 'a malformed destination', local: nest, destination: 'not-a-repository' },
+    { name: 'an empty destination', local: nest, destination: '' },
+  ];
+  for (const { name, local, destination, host } of unknown) {
+    const target = at(local, destination, host);
+    assert(target.kind === 'unknown' && target.level === 'none', `${name} is unknown and level none, got ${target.kind}/${target.level}`);
+  }
+
+  assert(resolveOwnedFork(OWNED_FORKS, OWNED_ENTRY.repository.split('/')[0], OWNED_ENTRY.repository.split('/')[1]).owned === true, 'the fixture target matches itself');
+  assert(resolveOwnedFork(OWNED_FORKS, OWNED_ENTRY.repository.split('/')[0].toUpperCase(), OWNED_ENTRY.repository.split('/')[1].toUpperCase()).owned === true, 'the owned-fork match is case-insensitive');
+  assert(resolveOwnedFork(OWNED_FORKS, OWNED_ENTRY.repository.split('/')[0], 'other').owned === false, 'an unrelated repository is not an owned fork');
+  assert(resolveOwnedFork(null, OWNED_ENTRY.repository.split('/')[0], OWNED_ENTRY.repository.split('/')[1]).owned === false, 'a missing policy owns nothing');
+
+  // A raw policy object a pure caller passes in must satisfy the same validation
+  // the committed loader applies, including the single personal owner. A policy
+  // the catalog validator would reject grants nothing and collapses nothing, on
+  // its own entry and on a valid entry that shares the file with it.
+  const foreignEntry = { repository: 'evil/fixture-owned', upstream: 'acme/upstream-lib', agentAccess: 'propose' };
+  const foreignOnly = { forks: [foreignEntry] };
+  assert(resolveOwnedFork(foreignOnly, 'evil', 'fixture-owned').owned === false, 'an entry owned by another account is not an owned fork');
+  const foreignTarget = resolveDestination({ roster, ownedForks: foreignOnly, localRepo: 'fixture-owned', host: 'github.com', destination: foreignEntry.repository });
+  assert(foreignTarget.kind === 'unknown' && foreignTarget.level === 'none', `a foreign-owner target is unknown, got ${foreignTarget.kind}/${foreignTarget.level}`);
+
+  const foreignForkPolicy = { forks: [{ repository: `evil/${nest}`, upstream: 'acme/upstream-lib', agentAccess: 'propose' }] };
+  const foreignCollapse = resolveDestination({ roster, ownedForks: foreignForkPolicy, localRepo: nest, host: 'github.com', destination: `evil/${nest}` });
+  assert(foreignCollapse.kind === 'unknown' && foreignCollapse.level === 'none', `a foreign owner never collapses to the org level, got ${foreignCollapse.kind}/${foreignCollapse.level}`);
+
+  const mixedOwners = { forks: [OWNED_ENTRY, foreignEntry] };
+  assert(resolveOwnedFork(mixedOwners, ...OWNED_ENTRY.repository.split('/')).owned === false, 'a mixed-owner policy grants nothing, not even its valid entry');
+  const mixedTarget = resolveDestination({ roster, ownedForks: mixedOwners, localRepo: 'fixture-owned', host: 'github.com', destination: OWNED_ENTRY.repository });
+  assert(mixedTarget.kind === 'unknown' && mixedTarget.level === 'none', `a mixed-owner policy collapses nothing, got ${mixedTarget.kind}/${mixedTarget.level}`);
+  const mixedFork = resolveDestination({ roster, ownedForks: mixedOwners, localRepo: nest, host: 'github.com', destination: `simpsonm09/${nest}` });
+  assert(mixedFork.kind === 'unknown', `a mixed-owner policy admits no personal push fork, got ${mixedFork.kind}`);
+
+  const closed = [
+    { name: 'a personal push fork', local: nest, destination: `simpsonm09/${nest}` },
+    { name: 'an owned fork', local: 'pstack-max', destination: OWNED_ENTRY.repository },
+  ];
+  for (const { name, local, destination } of closed) {
+    const target = resolveDestination({ roster, ownedForks: null, localRepo: local, host: 'github.com', destination });
+    assert(target.kind === 'unknown', `${name} fails closed without the owned-fork policy, got ${target.kind}`);
+  }
+  const noRoster = resolveDestination({ roster: null, ownedForks: OWNED_FORKS, localRepo: nest, host: 'github.com', destination: `simpsonm09/${nest}` });
+  assert(noRoster.kind === 'unknown', 'a missing roster closes the organization and personal-fork kinds');
+  const rosterlessOwned = resolveDestination({ roster: null, ownedForks: OWNED_FORKS, localRepo: 'pstack-max', host: 'github.com', destination: OWNED_ENTRY.repository });
+  assert(rosterlessOwned.kind === 'owned-fork', 'an owned fork resolves without the roster');
+
+  assert(CAPABILITIES_BY_KIND.org === null, 'the org kind defers to the level table');
+  const ownedGrant = CAPABILITIES_BY_KIND['owned-fork'];
+  assert(ownedGrant.every((capability) => CAPABILITIES.propose.includes(capability)), 'the owned-fork grant is a subset of propose');
+  assert(['mergePr', 'pushMain', 'admin'].every((capability) => !ownedGrant.includes(capability)), 'the owned fork grants no merge, main push, or admin');
+
+  const owned = at('pstack-max', OWNED_ENTRY.repository);
+  const push = (extra) => ({
+    operation: 'push',
+    capability: 'pushBranch',
+    readOnly: false,
+    resolved: true,
+    force: false,
+    delete: false,
+    refs: [{ kind: 'branch', name: 'feat/x', isDefault: false }],
+    ...extra,
+  });
+
+  const table = [
+    ['a non-default branch push', push(), true],
+    ['a forced branch push', push({ force: true }), false],
+    ['a branch deletion', push({ delete: true }), false],
+    ['a default-branch push', push({ refs: [{ kind: 'branch', name: 'main', isDefault: true }] }), false],
+    ['an unresolved default branch', push({ refs: [{ kind: 'branch', name: 'main', isDefault: null }] }), false],
+    ['a push with no resolved ref', push({ refs: [] }), false],
+    ['a tag push', push({ refs: [{ kind: 'tag', name: 'v1', isDefault: false }] }), false],
+    ['a non-branch ref', push({ refs: [{ kind: 'other', name: 'v1', isDefault: false }] }), false],
+    ['a multi-refspec push', push({ refs: [{ kind: 'branch', name: 'a', isDefault: false }, { kind: 'branch', name: 'b', isDefault: false }] }), false],
+    ['an unresolved destination', push({ resolved: false }), false],
+    ['a main push', push({ capability: 'pushMain' }), false],
+    ['a merge', push({ capability: 'mergePr' }), false],
+    ['an admin verb', push({ capability: 'admin' }), false],
+    ['an unknown capability', push({ capability: 'nope' }), false],
+    ['a pull request in the same repository', push({ capability: 'openPr', base: { owner: null, repo: null, branch: 'main' } }), true],
+    ['a pull request with an owner-qualified same repository base', push({ capability: 'openPr', base: { owner: 'simpsonm09', repo: 'fixture-owned', branch: 'main' } }), true],
+    ['a pull request with a cross-owner base', push({ capability: 'openPr', base: { owner: 'acme', repo: 'upstream-lib', branch: 'main' } }), false],
+    ['a pull request with an owner-qualified base and no repository', push({ capability: 'openPr', base: { owner: 'simpsonm09', branch: 'main' } }), false],
+    ['a pull request with a cross-owner head', push({ capability: 'openPr', head: { owner: 'acme', repo: 'upstream-lib', branch: 'feat/x' } }), false],
+    ['a read', { operation: 'read', capability: 'read', readOnly: true, resolved: true }, true],
+    ['a known read with no capability', { operation: 'read', capability: null, readOnly: true, resolved: true }, true],
+    ['an unqualified command with no capability', { operation: 'unknown', capability: null, readOnly: false, resolved: true }, false],
+  ];
+  for (const [name, intent, expected] of table) {
+    const { allowed, reason } = decideTarget(owned, intent);
+    assert(allowed === expected, `an owned fork ${expected ? 'allows' : 'denies'} ${name} (${reason})`);
+  }
+
+  const orgPropose = at(nest, `simpsonm09-org/${nest}`);
+  const orgRead = at(dotnet, `simpsonm09-org/${dotnet}`);
+  assert(decideTarget(orgPropose, push()).allowed === true, 'a propose repository allows a branch push');
+  assert(decideTarget(orgPropose, push({ capability: 'pushMain' })).allowed === false, 'a propose repository denies a main push');
+  assert(decideTarget(orgPropose, push({ capability: 'mergePr' })).allowed === false, 'a propose repository denies a merge');
+  assert(decideTarget(orgRead, push()).allowed === false, 'a read repository denies a branch push');
+  assert(decideTarget(orgPropose, push({ resolved: false })).allowed === true, 'an org destination keeps its level when the ref is unresolved');
+
+  // An intent that contradicts itself about writing denies, whatever the
+  // destination grants: the null-capability read path is not a way to launder a
+  // write, and the reason names the mismatch. The last case is the one a
+  // destination-only check would miss, because a propose repository grants the
+  // push the intent claims not to be.
+  const inconsistent = [
+    ['a push operation with no capability', { ...push(), capability: null }],
+    ['a push operation marked read-only with no capability', { ...push(), capability: null, readOnly: true }],
+    ['a read operation with a write capability', { ...push(), operation: 'read', capability: 'pushBranch' }],
+    ['a push operation with a read capability', { ...push(), capability: 'read', readOnly: true }],
+  ];
+  for (const [name, intent] of inconsistent) {
+    const { allowed, reason } = decideTarget(orgPropose, intent);
+    assert(allowed === false, `a propose repository denies ${name}`);
+    assert(
+      reason === 'the operation and the capability disagree about writing',
+      `${name} is denied as an inconsistent intent, got ${JSON.stringify(reason)}`,
+    );
+  }
+  assert(decideTarget(orgPropose, { operation: 'read', capability: null, readOnly: true, resolved: true }).allowed === true, 'a genuine read stays allowed');
+
+  const readIntent = { operation: 'read', capability: null, readOnly: true, resolved: true };
+  for (const destination of [OWNED_ENTRY.upstream, 'acme/unrelated']) {
+    const target = at('pstack-max', destination);
+    assert(decideTarget(target, push()).allowed === false, `${destination} denies a branch push`);
+    assert(decideTarget(target, push({ capability: 'admin' })).allowed === false, `${destination} denies an admin verb`);
+    assert(decideTarget(target, readIntent).allowed === true, `${destination} allows a read`);
+  }
+}
+
+// Build a throwaway clone to stand in for the catalog. `policy` overrides the
+// committed file, `upstream` controls whether the organization ref exists, and
+// `forge` commits a widened policy to the writable local `main` afterwards.
+function makeCatalog({ policy, upstream = true, forge } = {}) {
+  const dir = mkdtempSync(join(tmpdir(), 'agent-access-catalog-'));
+  const git = (...args) => spawnSync(
+    'git',
+    ['-c', 'commit.gpgsign=false', '-c', 'user.email=agent-access@example.invalid', '-c', 'user.name=agent-access-test', ...args],
+    { windowsHide: true, cwd: dir, encoding: 'utf8' },
+  );
+  const commit = (message) => {
+    git('add', '.');
+    git('commit', '-q', '-m', message);
+  };
+  git('init', '-q', '-b', 'main');
+  writeFileSync(join(dir, 'repos.json'), readFileSync(FIXTURE_CATALOG));
+  writeFileSync(join(dir, 'owned-forks.json'), policy ?? readFileSync(FIXTURE_OWNED_FORKS));
+  commit('the committed policy');
+  if (upstream) git('update-ref', 'refs/remotes/upstream/main', 'HEAD');
+  if (forge) {
+    const entry = { repository: forge, upstream: OWNED_ENTRY.upstream, agentAccess: 'propose' };
+    writeFileSync(join(dir, 'owned-forks.json'), JSON.stringify({ forks: [entry] }));
+    commit('a forged local main');
+  }
+  return dir;
+}
+
+// The owned-fork loader reads one committed ref. A writable local ref, a
+// malformed file, and an unsupported level must each close the kind instead of
+// becoming a grant.
+function testCommittedOwnedForks(assert) {
+  const readable = makeCatalog();
+  const forged = makeCatalog({ forge: 'simpsonm09/forged-target' });
+  const localOnly = makeCatalog({ upstream: false, forge: 'simpsonm09/forged-target' });
+  const unsupported = makeCatalog({ policy: JSON.stringify({ forks: [{ repository: 'simpsonm09/wide', upstream: OWNED_ENTRY.upstream, agentAccess: 'merge' }] }) });
+  const foreignOwner = makeCatalog({ policy: JSON.stringify({ forks: [{ repository: 'acme/wide', upstream: OWNED_ENTRY.upstream, agentAccess: 'propose' }] }) });
+  const mixedOwners = makeCatalog({ policy: JSON.stringify({ forks: [OWNED_ENTRY, { repository: 'evil/fixture-owned', upstream: 'acme/other', agentAccess: 'propose' }] }) });
+  const malformed = makeCatalog({ policy: '{' });
+  try {
+    const policy = loadCommittedOwnedForks(readable);
+    assert(policy?.forks?.length === 1, 'the loader reads the committed policy');
+    assert(policy.forks[0].repository === OWNED_ENTRY.repository, 'the loader keeps the committed target');
+
+    const forgedPolicy = loadCommittedOwnedForks(forged);
+    assert(forgedPolicy.forks.length === 1, 'a forged local main cannot add a second target');
+    const roster = loadCatalog(FIXTURE_CATALOG);
+    const target = resolveDestination({ roster, ownedForks: forgedPolicy, localRepo: 'pstack-max', host: 'github.com', destination: 'simpsonm09/forged-target' });
+    assert(target.kind === 'unknown', 'a forged target resolves to unknown');
+
+    assert(loadCommittedOwnedForks(localOnly) === null, 'a local main ref is never a grant source');
+    assert(loadCommittedOwnedForks(unsupported) === null, 'an unsupported level is not a grant');
+    assert(loadCommittedOwnedForks(foreignOwner) === null, 'a policy owned by another account is not a grant');
+    assert(loadCommittedOwnedForks(mixedOwners) === null, 'a mixed-owner policy is not a grant');
+    assert(loadCommittedOwnedForks(malformed) === null, 'a malformed policy is not a grant');
+    assert(loadCommittedOwnedForks(join(readable, 'missing')) === null, 'a missing clone closes the kind');
+  } finally {
+    for (const dir of [readable, forged, localOnly, unsupported, foreignOwner, mixedOwners, malformed]) rmSync(dir, { recursive: true, force: true });
   }
 }
 
@@ -227,14 +501,97 @@ function testCli(assert) {
   assert(selfTest.stdout.includes('self-test ok'), 'the self-test prints its success line');
 }
 
+// The destination mode is the real entry a hook or an adapter calls, so it is
+// driven as a subprocess against a throwaway committed catalog.
+function testDestinationCli(assert) {
+  const dir = makeCatalog();
+  try {
+    const common = ['--catalog-dir', dir, '--host', 'github.com'];
+    const intent = (extra) => JSON.stringify({
+      operation: 'push',
+      capability: 'pushBranch',
+      readOnly: false,
+      resolved: true,
+      refs: [{ kind: 'branch', name: 'feat/x', isDefault: false }],
+      ...extra,
+    });
+    const destination = ['--destination', OWNED_ENTRY.repository];
+
+    const allowed = runResolver(['fixture-owned', ...common, ...destination, '--intent', intent(), '--json']);
+    assert(allowed.status === EXIT.OK, `an owned-fork branch push exits ${EXIT.OK}, got ${allowed.status} (${allowed.stderr.trim()})`);
+    const decision = JSON.parse(allowed.stdout);
+    assert(decision.allowed === true && decision.kind === 'owned-fork', 'the destination JSON carries the kind and the verdict');
+    assert(decision.capability === 'pushBranch', 'the destination JSON carries the capability');
+
+    const tag = { capability: 'pushMain', refs: [{ kind: 'tag', name: 'v1', isDefault: false }] };
+    const tagPush = runResolver(['fixture-owned', ...common, ...destination, '--intent', intent(tag)]);
+    assert(tagPush.status === EXIT.FAIL, `an owned-fork tag push exits ${EXIT.FAIL}, got ${tagPush.status}`);
+
+    const defaultBranch = { refs: [{ kind: 'branch', name: 'main', isDefault: true }] };
+    const mainPush = runResolver(['fixture-owned', ...common, ...destination, '--intent', intent(defaultBranch)]);
+    assert(mainPush.status === EXIT.FAIL, `an owned-fork default-branch push exits ${EXIT.FAIL}, got ${mainPush.status}`);
+
+    const forkPush = runResolver(['simpsonm09-fixture-nest', ...common, '--destination', 'simpsonm09/simpsonm09-fixture-nest', '--intent', intent()]);
+    assert(forkPush.status === EXIT.OK, `a personal push fork follows the org level (${forkPush.stderr.trim()})`);
+    const readFork = runResolver(['simpsonm09-fixture-dotnet', ...common, '--destination', 'simpsonm09/simpsonm09-fixture-dotnet', '--intent', intent()]);
+    assert(readFork.status === EXIT.FAIL, `a read repository denies a fork push, got ${readFork.status}`);
+
+    const upstream = runResolver(['fixture-owned', ...common, '--destination', OWNED_ENTRY.upstream, '--intent', intent()]);
+    assert(upstream.status === EXIT.FAIL, `a third-party upstream exits ${EXIT.FAIL}, got ${upstream.status}`);
+
+    const readOnly = JSON.stringify({ operation: 'read', capability: null, readOnly: true, resolved: true });
+    const read = runResolver(['fixture-owned', ...common, '--destination', 'acme/other', '--intent', readOnly]);
+    assert(read.status === EXIT.OK, `an unknown destination allows a read, got ${read.status}`);
+
+    const unqualifiedIntent = JSON.stringify({ operation: 'unknown', capability: null, readOnly: false, resolved: true });
+    const unqualified = runResolver(['fixture-owned', ...common, '--destination', 'acme/other', '--intent', unqualifiedIntent]);
+    assert(unqualified.status === EXIT.FAIL, `an unknown destination denies an unqualified command, got ${unqualified.status}`);
+
+    const inconsistentIntent = JSON.stringify({ operation: 'push', capability: null, readOnly: true, resolved: true });
+    const inconsistent = runResolver(['fixture-owned', ...common, ...destination, '--intent', inconsistentIntent, '--json']);
+    assert(inconsistent.status === EXIT.FAIL, `a push with no capability exits ${EXIT.FAIL}, got ${inconsistent.status}`);
+    const inconsistentReport = JSON.parse(inconsistent.stdout);
+    assert(inconsistentReport.allowed === false, 'the destination JSON denies the inconsistent intent');
+    assert(inconsistentReport.reason === 'the operation and the capability disagree about writing', `the destination JSON names the mismatch, got ${JSON.stringify(inconsistentReport.reason)}`);
+
+    const usages = [
+      ['a missing host', ['fixture-owned', '--destination', OWNED_ENTRY.repository, '--intent', intent()]],
+      ['a malformed intent', ['fixture-owned', ...common, ...destination, '--intent', '{']],
+      ['an unknown intent field', ['fixture-owned', ...common, ...destination, '--intent', intent({ operation_note: 'x' })]],
+      ['an unknown capability', ['fixture-owned', ...common, ...destination, '--intent', intent({ capability: 'nope' })]],
+      ['an invalid ref kind', ['fixture-owned', ...common, ...destination, '--intent', intent({ refs: [{ kind: 'nope', name: 'x', isDefault: false }] })]],
+      ['an unreadable committed catalog', ['fixture-owned', '--catalog-dir', join(dir, 'missing'), '--host', 'github.com', ...destination, '--intent', intent()]],
+    ];
+    for (const [name, argv] of usages) {
+      const result = runResolver(argv);
+      assert(result.status === EXIT.USAGE, `${name} exits ${EXIT.USAGE}, got ${result.status} (${result.stderr.trim()})`);
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+// The organization plugin bundles this resolver and matches the ROOT literal to
+// find the catalog. A second declaration would change which directory the bundle
+// reads, so exactly one must remain.
+function testRootLiteral(assert) {
+  const declarations = readFileSync(RESOLVER, 'utf8').match(/\bconst ROOT = /g) ?? [];
+  assert(declarations.length === 1, `the resolver declares ROOT exactly once, found ${declarations.length}`);
+}
+
 // Run the suite and return an exit code, so the runner (verify.mjs) and the CLI
 // share one path. It never calls process.exit, so an import cannot end the caller.
 export function runTest() {
   const { assert, total } = makeAsserter();
   try {
     testDecisionLayer(assert);
+    testMethodClassifier(assert);
+    testDestinationPolicy(assert);
+    testCommittedOwnedForks(assert);
     testHook(assert);
     testCli(assert);
+    testDestinationCli(assert);
+    testRootLiteral(assert);
     process.stdout.write(`agent-access.test: ok (${total()} assertions)\n`);
     return 0;
   } catch (error) {
