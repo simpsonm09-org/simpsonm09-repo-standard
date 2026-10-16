@@ -65,13 +65,13 @@ match wins.
 | `gh pr merge ...` | `mergePr` |
 | `gh pr create ...` | `openPr` |
 | `git push <remote> main` or `refs/heads/main` | `pushMain` |
-| `git push <remote> refs/tags/<tag>`, or a `--tags`, `--all`, `--mirror`, `--follow-tags`, or `--delete` flag | `pushMain` |
+| `git push <remote> refs/tags/<tag>`, or a `--tags`, `--all`, `--mirror`, `--follow-tags`, `--delete`, or `--prune` flag | `pushMain` |
 | `git push <remote> <other-ref>` | `pushBranch` |
 | `gh release create\|edit\|delete\|upload` | `admin` |
 | `gh workflow run\|enable\|disable` | `admin` |
 | `gh secret set\|delete` | `admin` |
 | `gh repo create\|delete\|edit\|rename\|transfer\|archive` | `admin` |
-| `gh api` with `-X`/`--method` `POST`/`PUT`/`PATCH`/`DELETE` — including the attached `-XDELETE` gh accepts — or with `-f`/`--field`/`--raw-field`/`--input` | `admin` |
+| `gh api` with `-X`/`--method` `POST`/`PUT`/`PATCH`/`DELETE` — including the attached `-XDELETE` gh accepts — or with `-f`/`--field`/`--raw-field`/`--input`, including the attached `-fkey=value` form | `admin` |
 | any other command | none, allowed |
 
 A `git push` is parsed by tokens, not by position. A flag token (leading `-`) is
@@ -81,7 +81,9 @@ remaining non-flag tokens are refspecs. A refspec naming `main` or
 A refspec whose destination is `refs/tags/*` is `pushMain` too, which aligns the
 resolver with the [push guard](#the-push-guard), and the `--tags`, `--all`,
 `--mirror`, `--follow-tags`, and `--delete` flags are `pushMain` because they
-write refs the command does not name. Any other branch refspec is `pushBranch`,
+write refs the command does not name. The `--prune` flag is `pushMain` in the
+same way: it removes the remote refs the refspec does not cover, so it writes a
+scope the command does not name. Any other branch refspec is `pushBranch`,
 and no refspec is `pushBranch`. This handles a flag before the remote or the ref,
 so `git push --dry-run origin main` is `pushMain`.
 
@@ -91,6 +93,12 @@ the short flag, which is the form gh also accepts. A read method such as `GET` o
 `HEAD`, a bare `-X`, and a token that only starts with `-X` without naming a
 method are all reads. The check is the `-X` prefix on one token, not a scan of the
 command text, so an argument that contains a verb is not a method.
+
+The same attached short form is read for a body flag. `-f` and `-F` count when
+the value is attached (`-fkey=value`, `-Fkey=@file`) as well as when it is a
+separate token, because any of them makes `gh api` send a body. A long flag
+begins with `--`, so it is never read as an attached short flag, and
+`--field=`/`--raw-field=`/`--input=` carry their value after `=`.
 
 `decide(level, command, remoteUrl)` returns `{ capability, allowed }`. A command
 with no capability reaches nothing governed, so every level allows it. The command

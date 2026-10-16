@@ -434,12 +434,23 @@ function isGhAdmin(parts) {
   return parts[1] === 'api' && (isWriteMethod(parts) || hasImplicitApiBody(parts));
 }
 
-// gh api treats -f/--field/--raw-field/--input as an implicit write.
+// gh api treats -f/--field/--raw-field/--input as an implicit write. A body flag
+// is the exact token, a long flag with its value after "=", or the attached short
+// form gh also accepts (-fkey=value, -Fkey=@file). The short form is matched on
+// the -f/-F prefix of one token -- the same attached-short-flag reading the
+// method parser uses -- not a scan of the command text. A long flag starts with
+// "--", so it never reads as an attached short flag.
 const API_BODY_FLAGS = ['-f', '-F', '--field', '--raw-field', '--input'];
+const API_BODY_PREFIXES = ['--field=', '--raw-field=', '--input='];
 
 function hasImplicitApiBody(parts) {
-  return parts.some((part) => API_BODY_FLAGS.includes(part)
-    || ['--field=', '--raw-field=', '--input='].some((prefix) => part.startsWith(prefix)));
+  return parts.some(isApiBodyFlag);
+}
+
+function isApiBodyFlag(part) {
+  if (API_BODY_FLAGS.includes(part)) return true;
+  if (API_BODY_PREFIXES.some((prefix) => part.startsWith(prefix))) return true;
+  return !part.startsWith('--') && (part.startsWith('-f') || part.startsWith('-F')) && part.length > 2;
 }
 
 function isGitPush(parts) {
@@ -491,10 +502,11 @@ function isProtectedRef(refspec) {
 }
 
 // A push needs `pushMain` when it writes a tag or the default branch, or when it
-// pushes refs it does not name: the --tags, --all, --mirror, --follow-tags, and
-// --delete flags each do that. A bare ref name is left to the caller's ref
-// resolution rather than a name guess.
-const PUSH_MAIN_FLAGS = ['--tags', '--all', '--mirror', '--follow-tags', '--delete', '-d'];
+// writes refs the command does not name: --tags, --all, --mirror, --follow-tags,
+// and --delete push refs on their own, and --prune removes the remote refs the
+// refspec does not cover, which is the same broad scope. A bare ref name is left
+// to the caller's ref resolution rather than a name guess.
+const PUSH_MAIN_FLAGS = ['--tags', '--all', '--mirror', '--follow-tags', '--delete', '-d', '--prune'];
 
 function gitPushNeedsMain(parts) {
   if (gitPushRefspecs(parts).some(isProtectedRef)) return true;
@@ -608,6 +620,12 @@ export function selfTest() {
     ['git push --all', 'pushMain'],
     ['git push --mirror', 'pushMain'],
     ['git push origin --delete feat/x', 'pushMain'],
+    ['git push origin --prune feat/x', 'pushMain'],
+    ['git push --prune origin feat/x', 'pushMain'],
+    ['git push --dry-run --prune origin feat/x', 'pushMain'],
+    ['git push origin --prune feat/x feat/y', 'pushMain'],
+    ['git push origin --prune refs/heads/*:refs/heads/*', 'pushMain'],
+    ['git push --prune', 'pushMain'],
     ['git push --dry-run origin main', 'pushMain'],
     ['git push -f origin main', 'pushMain'],
     ['git push --force-with-lease origin refs/heads/main', 'pushMain'],
@@ -624,6 +642,10 @@ export function selfTest() {
     ['gh api --method=POST repos/o/r', 'admin'],
     ['gh api --method=delete repos/o/r', 'admin'],
     ['gh api -f name=value repos/o/r', 'admin'],
+    ['gh api -fkey=value repos/o/r', 'admin'],
+    ['gh api -Fkey=@file repos/o/r', 'admin'],
+    ['gh api -f=key=value repos/o/r', 'admin'],
+    ['gh api graphql -fquery=mutation', 'admin'],
     ['gh api --input - repos/o/r', 'admin'],
     ['gh release create v1', 'admin'],
     ['gh workflow run ci.yml', 'admin'],
@@ -641,11 +663,14 @@ export function selfTest() {
     ['gh api -X', null],
     ['gh api -XPOSTED repos/o/r', null],
     ['gh api repos/o/r --jq .name', null],
+    ['gh api repos/o/r --paginate', null],
     ['gh pr view 1', null],
     ['npm test', null],
     ['git status', null],
     ['echo "gh pr create"', null],
     ['git commit -m "gh pr create docs"', null],
+    ['echo "gh api -fkey=value repos/o/r"', null],
+    ['git commit -m "git push origin --prune"', null],
     ['npm test 2>&1 | grep "git push origin main"', null],
     ['', null],
   ];
@@ -667,6 +692,11 @@ export function selfTest() {
     ['none', 'npm test', true],
     ['read', 'gh api -X POST repos/o/r', false],
     ['full', 'gh api -X POST repos/o/r', true],
+    ['propose', 'git push origin --prune feat/x', false],
+    ['merge', 'git push origin --prune feat/x', false],
+    ['full', 'git push origin --prune feat/x', true],
+    ['read', 'gh api -fkey=value repos/o/r', false],
+    ['full', 'gh api -fkey=value repos/o/r', true],
   ];
   for (const [level, command, expected] of allowed) {
     assert(decide(level, command).allowed === expected, `decide ${level} ${JSON.stringify(command)} -> ${expected}`);

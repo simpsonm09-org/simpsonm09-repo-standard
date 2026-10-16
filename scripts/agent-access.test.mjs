@@ -146,6 +146,76 @@ function testMethodClassifier(assert) {
   assert(full.allowed === true && full.capability === 'admin', 'a full level allows the attached write method');
 }
 
+// The push classifier. --prune removes the remote refs the refspec does not
+// cover, so it needs pushMain wherever it sits relative to the remote and the
+// refspecs, and the branch push without it stays pushBranch. A quoted example is
+// not a push, because the classifier reads the program at the first token.
+function testPushClassifier(assert) {
+  const cases = [
+    ['git push origin feat/x', 'pushBranch'],
+    ['git push origin main', 'pushMain'],
+    ['git push origin --prune feat/x', 'pushMain'],
+    ['git push --prune origin feat/x', 'pushMain'],
+    ['git push --dry-run --prune origin feat/x', 'pushMain'],
+    ['git push origin --prune', 'pushMain'],
+    ['git push --prune', 'pushMain'],
+    ['git push origin --prune feat/x feat/y', 'pushMain'],
+    ['git push origin --prune refs/heads/*:refs/heads/*', 'pushMain'],
+    ['git push --dry-run origin feat/x', 'pushBranch'],
+    ['echo "git push origin --prune feat/x"', null],
+    ['git commit -m "git push origin --prune"', null],
+  ];
+  for (const [command, expected] of cases) {
+    const capability = classify(command);
+    assert(capability === expected, `classify ${JSON.stringify(command)} -> ${expected}, got ${capability}`);
+  }
+  const levels = [
+    ['propose', 'git push origin --prune feat/x', 'pushMain', false],
+    ['merge', 'git push origin --prune feat/x', 'pushMain', false],
+    ['full', 'git push origin --prune feat/x', 'pushMain', true],
+    ['read', 'git push origin --prune feat/x', 'pushMain', false],
+    ['propose', 'git push origin feat/x', 'pushBranch', true],
+  ];
+  for (const [level, command, capability, allowed] of levels) {
+    const decision = decide(level, command);
+    assert(decision.capability === capability, `decide ${level} ${JSON.stringify(command)} needs ${capability}, got ${decision.capability}`);
+    assert(decision.allowed === allowed, `a ${level} level ${allowed ? 'allows' : 'denies'} ${JSON.stringify(command)}, got ${decision.allowed}`);
+  }
+}
+
+// The gh api body classifier. gh sends a body for -f/--field, -F/--raw-field,
+// and --input, including the attached short form gh also accepts (-fkey=value,
+// -Fkey=@file), which the earlier exact-token check missed. A read names none of
+// them, a long flag is never read as an attached short flag, and a quoted
+// example is not an api call.
+function testApiBodyClassifier(assert) {
+  const cases = [
+    ['gh api -f name=value repos/o/r', 'admin'],
+    ['gh api -fkey=value repos/o/r', 'admin'],
+    ['gh api -Fkey=@file repos/o/r', 'admin'],
+    ['gh api -f=key=value repos/o/r', 'admin'],
+    ['gh api graphql -fquery=mutation', 'admin'],
+    ['gh api --field=name=value repos/o/r', 'admin'],
+    ['gh api --raw-field=name=value repos/o/r', 'admin'],
+    ['gh api --input - repos/o/r', 'admin'],
+    ['gh api -XPOST -fkey=value repos/o/r', 'admin'],
+    ['gh api repos/o/r', null],
+    ['gh api -XGET repos/o/r', null],
+    ['gh api --jq .name repos/o/r', null],
+    ['gh api repos/o/r --paginate', null],
+    ['echo "gh api -fkey=value repos/o/r"', null],
+    ['git commit -m "gh api -Fkey=@file"', null],
+  ];
+  for (const [command, expected] of cases) {
+    const capability = classify(command);
+    assert(capability === expected, `classify ${JSON.stringify(command)} -> ${expected}, got ${capability}`);
+  }
+  const read = decide('read', 'gh api -fkey=value repos/o/r');
+  assert(read.allowed === false && read.capability === 'admin', 'a read level denies the attached body flag');
+  const full = decide('full', 'gh api graphql -fquery=mutation');
+  assert(full.allowed === true && full.capability === 'admin', 'a full level allows the attached body flag');
+}
+
 // Level one, destination half: one policy truth governs the organization
 // repository and its personal push fork, the owned fork is a strict subset, and
 // an upstream or an unknown destination gets reads only.
@@ -586,6 +656,8 @@ export function runTest() {
   try {
     testDecisionLayer(assert);
     testMethodClassifier(assert);
+    testPushClassifier(assert);
+    testApiBodyClassifier(assert);
     testDestinationPolicy(assert);
     testCommittedOwnedForks(assert);
     testHook(assert);
