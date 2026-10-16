@@ -35,6 +35,10 @@ and resolves one repository.
 node scripts/agent-access.mjs simpsonm09-repo-catalog              # prints the level
 node scripts/agent-access.mjs simpsonm09-browser-calculator --json # prints the level, tier, and source
 node scripts/agent-access.mjs simpsonm09-repo-catalog --allows pushMain  # exits 1 when denied
+node scripts/agent-access.mjs pstack-max --host github.com \
+  --destination simpsonm09/pstack-max \
+  --intent '{"operation":"push","capability":"pushBranch","readOnly":false,"resolved":true,"refs":[{"kind":"branch","name":"feat/x","isDefault":false}]}' \
+  # exits 0 when the destination may be written this way, 1 when it may not, 2 on usage
 ```
 
 The `--allows` mode exits `0` when the level grants the capability and `1` when it
@@ -61,17 +65,32 @@ match wins.
 | `gh pr merge ...` | `mergePr` |
 | `gh pr create ...` | `openPr` |
 | `git push <remote> main` or `refs/heads/main` | `pushMain` |
+| `git push <remote> refs/tags/<tag>`, or a `--tags`, `--all`, `--mirror`, `--follow-tags`, or `--delete` flag | `pushMain` |
 | `git push <remote> <other-ref>` | `pushBranch` |
-| `gh api` with `-X` or `--method` `POST`/`PUT`/`PATCH`/`DELETE` | `admin` |
+| `gh release create\|edit\|delete\|upload` | `admin` |
+| `gh workflow run\|enable\|disable` | `admin` |
+| `gh secret set\|delete` | `admin` |
+| `gh repo create\|delete\|edit\|rename\|transfer\|archive` | `admin` |
+| `gh api` with `-X`/`--method` `POST`/`PUT`/`PATCH`/`DELETE` — including the attached `-XDELETE` gh accepts — or with `-f`/`--field`/`--raw-field`/`--input` | `admin` |
 | any other command | none, allowed |
 
 A `git push` is parsed by tokens, not by position. A flag token (leading `-`) is
 skipped, the first non-flag token is the remote when it is not a refspec, and the
 remaining non-flag tokens are refspecs. A refspec naming `main` or
 `refs/heads/main`, including a destination form such as `X:main`, is `pushMain`.
-Any other branch refspec is `pushBranch`, and no refspec is `pushBranch`. This
-handles a flag before the remote or the ref, so `git push --dry-run origin main`
-is `pushMain`.
+A refspec whose destination is `refs/tags/*` is `pushMain` too, which aligns the
+resolver with the [push guard](#the-push-guard), and the `--tags`, `--all`,
+`--mirror`, `--follow-tags`, and `--delete` flags are `pushMain` because they
+write refs the command does not name. Any other branch refspec is `pushBranch`,
+and no refspec is `pushBranch`. This handles a flag before the remote or the ref,
+so `git push --dry-run origin main` is `pushMain`.
+
+An `api` method is read the same way, by token. `-X` and `--method` take the next
+token, `--method=POST` carries its own value, and `-XDELETE` appends the value to
+the short flag, which is the form gh also accepts. A read method such as `GET` or
+`HEAD`, a bare `-X`, and a token that only starts with `-X` without naming a
+method are all reads. The check is the `-X` prefix on one token, not a scan of the
+command text, so an argument that contains a verb is not a method.
 
 `decide(level, command, remoteUrl)` returns `{ capability, allowed }`. A command
 with no capability reaches nothing governed, so every level allows it. The command
@@ -90,6 +109,136 @@ not govern it and every level allows it. When the URL is unknown, the push stays
 governed, so a caller that cannot resolve the remote fails closed. The `--command`
 CLI mode takes the URL as `--remote-url <url>`; without it the behavior is
 unchanged.
+
+This scope rule is the level-and-classifier path. The destination policy below
+decides the same push from the resolved destination instead of a URL substring,
+so it closes the third-party hole this scope leaves open. The policy is additive;
+the push guard and the org plugin migrate to it in later changes, and until they
+do, the URL scope above is what they apply.
+
+## The destination policy
+
+The classifier answers what a command needs. The destination policy answers the
+sharper question: which repository is being written, and may it be written this
+way? The policy is pure. It takes a destination and a structured intent, and it
+returns one verdict.
+
+```js
+resolveDestination({ roster, ownedForks, localRepo, host, destination })
+  // -> { kind, owner, repo, level, source, upstream? }
+  // kind is 'org' | 'owned-fork' | 'upstream' | 'unknown'
+decideTarget(target, intent)
+  // -> { allowed, capability, reason }
+```
+
+`resolveDestination` takes a fully qualified `owner/repo` destination and the
+host, and resolves one kind. `host` must be `github.com`. Any other host, and a
+malformed destination, is `unknown`. First match wins:
+
+| Destination | Kind | Level |
+| --- | --- | --- |
+| owner is the roster `org` and the repository is in the roster | `org` | the roster level |
+| the personal owner's fork of the clone's own governed repository | `org` | the same roster level |
+| a target recorded in `owned-forks.json` | `owned-fork` | `propose` |
+| a recorded `upstream` in `owned-forks.json` | `upstream` | `none` |
+| anything else | `unknown` | `none` |
+
+A repository and its personal push fork share one level on purpose. The fork is
+not a second grant; it is the same policy applied to the fork the clone pushes
+to. A `read` repository's fork push is denied, and a `propose` repository's is
+allowed. `localRepo` is the clone's own identity, and the personal owner is the
+owner of the repositories the owned-fork policy records, so a third-party
+repository that happens to share a governed repository's name resolves to
+`unknown` instead of inheriting its level.
+
+`decideTarget` takes one structured intent. The caller builds the destination and
+the intent from the command and the observed git state, and nothing in the
+command text can widen a grant.
+
+| Field | Meaning |
+| --- | --- |
+| `operation` | `push`, `openPr`, `mergePr`, `admin`, `read`, `none`, or `unknown` |
+| `capability` | the capability the caller resolved, or `null` for a read or a local command |
+| `readOnly` | `true` only for a known read or a local command |
+| `resolved` | `false` when the destination or the ref kind could not be resolved |
+| `refs` | the pushed refs, each `{ kind, name, isDefault }` |
+| `force`, `delete` | the push flags that change what a refspec means |
+| `base`, `head` | the pull request sides, each `{ owner, repo, branch }` |
+
+`capability` is `null` for a known read or a local command, and that path
+requires `readOnly: true`. An intent that contradicts itself about writing is
+denied before that path is reached: a writing operation (`push`, `openPr`,
+`mergePr`, `admin`) with no capability, a writing operation with a read
+capability, or a read operation with a write capability all deny. A caller that
+omits `operation` entirely is judged on the capability alone, which is how a
+direct pure call that names only a capability keeps its behavior.
+
+`CAPABILITIES_BY_KIND` is the one table per kind:
+
+| Kind | Grants |
+| --- | --- |
+| `org` | the level's capabilities, from `CAPABILITIES` |
+| `owned-fork` | `read`, `pushBranch`, `openPr` |
+| `upstream` | `read` |
+| `unknown` | `read` |
+
+An owned fork gets a strict subset of `propose`. A branch push is granted only
+for a single ref that is a `branch` and is not the resolved default branch, so a
+tag, a bare tag, `--tags`, `--all`, `--mirror`, a deletion, a force, a
+multi-refspec, and an unresolved ref all deny. A pull request is granted only
+when its head and its base stay in the same repository, so a cross-owner `--base`
+or `--head` denies. Merge, `main`, release, workflow, secret, repository, and
+`api` writes deny at every owned fork, and so do every write to an `upstream` and
+to an `unknown` destination.
+
+The default branch is the caller's resolved default rather than a literal name, so
+a bare `HEAD`, a bare `git push`, and a default branch that is not `main` are
+decided from observed git state.
+
+## Reading the policy from committed refs
+
+The roster comes from `upstream/main`, then `main`. The owned-fork policy comes
+from `upstream/main` **only**. A local `main` ref is writable by the same user
+who runs the agent, so it is never a grant source: a forged
+`main:owned-forks.json` would otherwise add a write target. A missing, malformed,
+or unsupported policy closes the owned-fork and upstream kinds, so every write to
+them is denied. The reader applies the catalog validator's shape rules, accepts
+only `propose`, and rejects an unknown field, a duplicate, a malformed identity,
+an entry whose repository equals its upstream, and an entry whose repository is
+not owned by the one personal account the catalog validator fixes.
+
+That validation is one rule applied in one place, and every pure entry point uses
+it: the loader rejects a bad file, and `resolveDestination` and `resolveOwnedFork`
+reject a raw policy object a caller passes directly. A policy that mixes a valid
+entry with one from another owner is rejected whole rather than half trusted, so
+the owner of a recorded fork can never be inferred from the file it is in. That is
+what keeps a third-party repository that shares a governed repository's name out
+of the organization level.
+
+## What the destination policy does not do
+
+The destination and the ref kind come from git state. The operation, the ref text,
+`-R`/`--repo`/`--head`/`--base`, and everything inside a compound command come
+from an untrusted command and a recognized-form parse. An unrecognized form is
+handled conservatively. The gate stays a guardrail, not a boundary.
+
+These cases are not decided here, and belong to the adapter that migrates later:
+
+- `pushurl`, multiple push URLs, and an unparseable remote URL.
+- The real default push remote: `remote.pushDefault`, then
+  `branch.<b>.pushRemote`, then `branch.<b>.remote`, then `origin`.
+- Resolving a bare ref name, a bare `HEAD`, and the default branch through git.
+- `git -C <path>`, aliases, `--no-verify`, pipelines, `$(...)`, `iex`,
+  `Start-Process`, `& 'git'`, `bash -c`, and a global `-R` before the subcommand.
+- Quoted examples of a write, which the whole-string scans of past versions
+  rejected: `echo "gh pr create"`, `git commit -m "gh pr create docs"`, and
+  `npm test 2>&1 | grep "git push origin main"`. This classifier reads the program
+  at the first token, so none of the three is a write, and the adapter must keep
+  that behavior when it replaces its own scan.
+
+The gate acts only in a fleet repository. A command run outside a fleet clone is
+not gated, which is unchanged. The destination policy is a decision, and the
+adapter decides whether the command's directory is in scope.
 
 ## The drift check
 
