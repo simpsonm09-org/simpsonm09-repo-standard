@@ -34,6 +34,8 @@ A repository whose suite must run on an operating system other than the default 
 
 The second job is not required at first. Add it to the repository's required checks once it is stable, and until then it reports without blocking. The checker accepts a required `test-<suffix>` check only when ci.yml defines that job.
 
+A repository with cross-platform code adds one job per host it must exercise, named `test-windows` and `test-macos`, each running the focused `just test-portable` recipe. The naming is a manual convention, not yet enforced: the standard ships no template hook and no checker for it. Keep that recipe a cheap regression over the portable helpers, because the Windows and macOS runners cost more than Linux; the full suite stays in `just test` on the default runner. The job runs the recipe directly, so a job whose recipe is absent is red — there is no skip. This repository dogfoods the pair in its own [`ci.yml`](../.github/workflows/ci.yml).
+
 ## Regenerate the API document
 
 A repository that exposes an HTTP API adds a step that regenerates the OpenAPI document and fails on drift. Run it before the coverage gate. See [`documentation.md`](documentation.md).

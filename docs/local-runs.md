@@ -22,6 +22,7 @@ just --list        # show the recipes
 just lint          # lint every tracked file
 just lint-fix      # fix what is fixable
 just test          # run the test suite
+just test-portable # run the focused cross-platform regression
 just aislop        # run the AI-slop gate
 just verify        # lint and test
 ```

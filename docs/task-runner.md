@@ -15,6 +15,7 @@ Keep the recipes thin. A recipe calls a portable executable such as `mise`, `npm
 | `just aislop` | Runs the AI-slop gate. |
 | `just test` | Runs the test suite. |
 | `just coverage` | Runs the suite with coverage and writes `coverage/lcov.info`. |
+| `just test-portable` | Runs the focused cross-platform regression on the host OS. |
 | `just verify` | Runs the full local check. |
 | `just prune` | Prunes remote-tracking refs and deletes local branches merged into `main`. |
 

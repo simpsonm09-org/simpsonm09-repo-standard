@@ -63,6 +63,10 @@ test-env:
 test-required:
     {{op}} run test-required
 
+# Run the focused cross-platform regression on the host OS.
+test-portable:
+    {{op}} run test-portable
+
 # Run the local CI mirror: lint, test, aislop, security, and secret scan.
 verify:
     {{op}} run verify
