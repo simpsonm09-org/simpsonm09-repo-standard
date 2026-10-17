@@ -41,7 +41,13 @@
       "id": "test",
       "kind": "portable",
       "run": "node scripts/test.mjs",
-      "description": "Run every test suite."
+      "description": "Run every test suite, including the agent-token scope tests."
+    },
+    {
+      "id": "test-agent-token",
+      "kind": "portable",
+      "run": "node --test scripts/agent-token.test.mjs",
+      "description": "Run the offline agent-token scope tests."
     },
     {
       "id": "coverage",

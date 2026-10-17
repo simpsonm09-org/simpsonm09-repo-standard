@@ -41,8 +41,8 @@ function credentials() {
   return { id: String(meta.id), key: readFileSync(join(CONFIG_DIR, 'agent-app.pem'), 'utf8') };
 }
 
-async function github(path, token, options = {}) {
-  const response = await fetch(`${API}${path}`, {
+async function github(path, token, options = {}, fetchImpl = fetch) {
+  const response = await fetchImpl(`${API}${path}`, {
     ...options,
     headers: {
       Accept: 'application/vnd.github+json',
@@ -51,15 +51,46 @@ async function github(path, token, options = {}) {
       ...options.headers,
     },
   });
-  if (!response.ok) throw new Error(`${path}: ${response.status} ${await response.text()}`);
+  if (!response.ok) throw new Error(`${path}: HTTP ${response.status}`);
   return response.json();
 }
 
-export async function mintForRepo(owner, repo) {
-  const { id, key } = credentials();
+function validateRepositoryName(owner, repo) {
+  if (typeof owner !== 'string' || typeof repo !== 'string' || !owner || !repo) {
+    throw new Error('owner and repository must be nonempty strings');
+  }
+  if (!/^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$/.test(owner)
+    || !/^[A-Za-z0-9_.-]+$/.test(repo)
+    || repo === '.' || repo === '..') {
+    throw new Error('invalid owner or repository name');
+  }
+}
+
+export async function mintForRepo(owner, repo, deps = {}) {
+  validateRepositoryName(owner, repo);
+  const fetchImpl = deps.fetchImpl ?? fetch;
+  const { id, key } = (deps.credentialsProvider ?? credentials)();
   const jwt = appJwt(id, key);
-  const installation = await github(`/repos/${owner}/${repo}/installation`, jwt);
-  const token = await github(`/app/installations/${installation.id}/access_tokens`, jwt, { method: 'POST' });
+  const installation = await github(`/repos/${owner}/${repo}/installation`, jwt, {}, fetchImpl);
+  if (!Number.isSafeInteger(installation?.id) || installation.id <= 0) throw new Error('invalid installation id');
+  const token = await github(`/app/installations/${installation.id}/access_tokens`, jwt, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ repositories: [repo] }),
+  }, fetchImpl);
+  if (!token || typeof token.token !== 'string' || token.token.trim() === '') throw new Error('invalid token response');
+  const expiry = typeof token.expires_at === 'string' ? Date.parse(token.expires_at) : NaN;
+  if (!Number.isFinite(expiry) || expiry <= Date.now()) throw new Error('invalid token response');
+  if (token.repositories !== undefined) {
+    const expected = `${owner}/${repo}`.toLowerCase();
+    if (!Array.isArray(token.repositories)
+      || token.repositories.length !== 1
+      || !token.repositories[0]
+      || typeof token.repositories[0].full_name !== 'string'
+      || token.repositories[0].full_name.toLowerCase() !== expected) {
+      throw new Error('token response repository scope mismatch');
+    }
+  }
   return { installation: installation.id, token: token.token, expires_at: token.expires_at };
 }
 

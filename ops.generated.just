@@ -27,9 +27,13 @@ security:
 secret-scan:
     {{op}} run secret-scan
 
-# Run every test suite.
+# Run every test suite, including the agent-token scope tests.
 test:
     {{op}} run test
+
+# Run the offline agent-token scope tests.
+test-agent-token:
+    {{op}} run test-agent-token
 
 # Run the suite with coverage and write coverage/lcov.info.
 coverage:
