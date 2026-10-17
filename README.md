@@ -12,6 +12,7 @@ The reusable repository standard for `simpsonm09-org`. It owns the shared CI, li
 - Ruleset JSON and an idempotent apply script for branch and tag protection.
 - A `justfile` task-runner convention, with `just` as the one local entry point.
 - A fleet conformance checker that proves every repository matches the standard and stays aligned.
+- A GitHub App token broker that mints installation tokens scoped to one repository.
 - Repository settings and owner-topic convergence through a dry-run apply script.
 - Bash and PowerShell versions of every operational script, with matching behavior.
 - A testing convention for the test job each repository adds to its caller workflow.

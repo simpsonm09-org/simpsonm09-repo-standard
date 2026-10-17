@@ -331,8 +331,10 @@ repository. See [governance](../governance.md#bypass-actors).
 ## The token broker
 
 [`../../scripts/agent-token.mjs`](../../scripts/agent-token.mjs) mints an
-installation token from the app id and key. The token is short-lived and scoped to
-one installation, so it is the credential the agent uses at the boundary.
+installation token from the app id and key. Each token request names the target
+repository, so the token is scoped to that repository within the installation.
+The broker keeps the app's existing installation permission defaults. It does not
+narrow permissions by operation.
 
 ```bash
 node scripts/agent-token.mjs simpsonm09-org/simpsonm09-repo-catalog

@@ -6,7 +6,7 @@
 //   node scripts/test.mjs
 
 import { EXIT } from './lib/exit.mjs';
-import { isMain } from './lib/proc.mjs';
+import { isMain, run } from './lib/proc.mjs';
 import { runTest as runAgentAccess } from './agent-access.test.mjs';
 import { runTest as runEnv } from './env.test.mjs';
 import { runTest as runPatchCoverage } from './patch-coverage.test.mjs';
@@ -22,6 +22,7 @@ export function runTests() {
   for (const suite of SUITES) {
     if (suite() !== EXIT.OK) failed = true;
   }
+  if (run(process.execPath, ['scripts/op.mjs', 'run', 'test-agent-token']) !== EXIT.OK) failed = true;
   return failed ? EXIT.FAIL : EXIT.OK;
 }
 
