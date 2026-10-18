@@ -51,11 +51,9 @@ def decide_fork_sync(
 ) -> tuple[ForkSyncOwner, tuple[str, ...], tuple[str, ...]]:
     """Fork sync is independent of the local writer and never inferred from a parent.
 
-    Eligible only when an exact owned canonical and an exact owned personal fork are
-    both present in the inventory, the fork's canonical/parent relationship agrees
-    with the group, and a configured account is supplied. A third-party parent name
-    is never used as a canonical and never grants a sync claim; a declared fork that
-    is absent from the inventory is held, not trusted.
+    Eligible only when an exact owned canonical and personal fork are in inventory,
+    their parent relationship agrees, and an owned account is configured. A
+    third-party parent never grants a sync claim; an absent declared fork is held.
 
     Returns ``(owner, reasons, fork_members)``.
     """
@@ -139,9 +137,7 @@ def _decide_checkout(
     input order. A path recorded under conflicting canonicals/owners or with
     conflicting remote bindings fails closed.
     """
-    ordered_members = sorted(
-        members, key=lambda pair: (pair[0].full_name, pair[1].path)
-    )
+    ordered_members = sorted(members, key=lambda pair: (pair[0].full_name, pair[1].path))
     entries = tuple(m for m, _ in ordered_members)
     checkouts = tuple(c for _, c in ordered_members)
 
@@ -153,36 +149,9 @@ def _decide_checkout(
     display_path = min(c.path for c in checkouts)
 
     pin = "|".join(classes) if classes else None
-    reasons: list[str] = []
-    actions: list[str] = []
-    exception_recorded = False
-    writer: LocalWriter | None = None
-
-    if classes:
-        exc = config.checkout_exception(key)
-        if exc is None:
-            canonical_exc = (
-                config.canonical_exception(canonicals[0])
-                if len(canonicals) == 1
-                else None
-            )
-            if canonical_exc is not None:
-                exception_recorded = True
-                reasons.append(
-                    f"explicit_exception:{pin}:{canonical_exc.reason}:"
-                    "canonical_scope_does_not_lift_pin"
-                )
-            reasons.append(f"pinned:{pin}")
-            reasons.append("explicit_exception_required")
-            writer = LocalWriter.HOLD
-        elif not exc.lift_pin:
-            exception_recorded = True
-            reasons.append(f"explicit_exception:{pin}:{exc.reason}:pin_retained")
-            writer = LocalWriter.HOLD
-        else:
-            exception_recorded = True
-            reasons.append(f"explicit_exception:{pin}:{exc.reason}")
-
+    exception_recorded, reasons, writer = _pin_decision(
+        key, classes, pin, canonicals, config
+    )
     evidence = config.checkout_evidence(key)
     approved = key in config.approved_dev_checkouts
     canonical_evidence = (
@@ -194,72 +163,20 @@ def _decide_checkout(
     ):
         reasons.append("canonical_evidence_does_not_unlock_physical_checkout")
 
+    actions: list[str] = []
     if writer is None:
-        if evidence.usable_false():
-            reasons.append("effective_autoPull_false_verified_fresh")
-            if config.worker_local_writes_disabled is False and approved:
-                reasons.append("approved_dev_checkout")
-                reasons.append("worker_local_writes_enabled")
-                writer = LocalWriter.MAINTENANCE
-            else:
-                if not approved:
-                    reasons.append("not_approved_dev_checkout")
-                    actions.append(
-                        "classify this checkout as an approved dev checkout after the "
-                        "supported-UI defaultAutoPull=false override is verified and fresh"
-                    )
-                else:
-                    reasons.append("worker_local_writes_not_enabled")
-                    actions.append(
-                        "enable worker local writes to take ownership, or keep T3 as "
-                        "the local writer"
-                    )
-                writer = LocalWriter.HOLD
-        elif evidence.usable_true():
-            reasons.append("effective_autoPull_true_verified")
-            if config.worker_local_writes_disabled is True:
-                reasons.append("worker_local_writes_disabled")
-                writer = LocalWriter.T3
-            else:
-                reasons.append("worker_local_writes_not_disabled")
-                actions.append(
-                    "disable worker local writes before letting T3 own this checkout, "
-                    "or flip the override off and take maintenance ownership"
-                )
-                writer = LocalWriter.HOLD
-        else:
-            reasons.append(f"evidence_{evidence.observed.value}")
-            reasons.append("fail_closed")
-            actions.append(
-                "obtain verified fresh effective autoPull evidence from the supported "
-                "Settings UI per-project override; a clean branch or clone read is not enough"
-            )
-            writer = LocalWriter.HOLD
-
-    # A path named by more than one identity, or with ambiguous remote bindings,
-    # can never be unlocked by evidence alone.
-    if len(canonicals) > 1 or len(owner_groups) > 1:
-        reasons.append("conflicting_canonical_or_owner_identity_fail_closed")
-        writer = LocalWriter.HOLD
-    if len(urls) > 1:
-        reasons.append("ambiguous_shared_path_remote_bindings_fail_closed")
-        writer = LocalWriter.HOLD
-
-    identities = {n.lower() for n in canonicals}
-    identities.update(e.full_name.lower() for e in entries)
-    identities.update(e.personal_fork.lower() for e in entries if e.personal_fork)
-    unexpected = tuple(
-        sorted(
-            {
-                c.url
-                for c in checkouts
-                if c.url and (remote_repo(c.url) or "").lower() not in identities
-            }
+        writer, evidence_reasons, actions = _writer_from_evidence(
+            evidence, approved, config
         )
+        reasons.extend(evidence_reasons)
+    writer, identity_problems = _shared_identity_problems(
+        canonicals, owner_groups, urls, writer
     )
-    if unexpected:
-        reasons.append("unexpected_remote_binding_fail_closed:" + ",".join(unexpected))
-        writer = LocalWriter.HOLD
+    reasons.extend(identity_problems)
+    writer, remote_problems = _remote_binding_problems(
+        canonicals, entries, checkouts, writer
+    )
+    reasons.extend(remote_problems)
 
     reasons.append("shared_path_identity:" + ",".join(canonicals))
     if urls:
@@ -282,3 +199,117 @@ def _decide_checkout(
         reasons=tuple(reasons),
         required_actions=tuple(actions),
     )
+
+
+def _pin_decision(
+    key: str,
+    classes: tuple[str, ...],
+    pin: str | None,
+    canonicals: tuple[str, ...],
+    config: PolicyConfig,
+) -> tuple[bool, list[str], LocalWriter | None]:
+    reasons: list[str] = []
+    if not classes:
+        return False, reasons, None
+    exception = config.checkout_exception(key)
+    if exception is None:
+        canonical_exception = (
+            config.canonical_exception(canonicals[0]) if len(canonicals) == 1 else None
+        )
+        if canonical_exception is not None:
+            reasons.append(
+                f"explicit_exception:{pin}:{canonical_exception.reason}:"
+                "canonical_scope_does_not_lift_pin"
+            )
+        reasons.extend((f"pinned:{pin}", "explicit_exception_required"))
+        return canonical_exception is not None, reasons, LocalWriter.HOLD
+    suffix = ":pin_retained" if not exception.lift_pin else ""
+    reasons.append(f"explicit_exception:{pin}:{exception.reason}{suffix}")
+    writer = LocalWriter.HOLD if not exception.lift_pin else None
+    return True, reasons, writer
+
+
+def _writer_from_evidence(
+    evidence: Evidence, approved: bool, config: PolicyConfig
+) -> tuple[LocalWriter, list[str], list[str]]:
+    reasons: list[str] = []
+    actions: list[str] = []
+    if evidence.usable_false():
+        reasons.append("effective_autoPull_false_verified_fresh")
+        if config.worker_local_writes_disabled is False and approved:
+            reasons.extend(("approved_dev_checkout", "worker_local_writes_enabled"))
+            return LocalWriter.MAINTENANCE, reasons, actions
+        if not approved:
+            reasons.append("not_approved_dev_checkout")
+            actions.append(
+                "classify this checkout as an approved dev checkout after the "
+                "supported-UI defaultAutoPull=false override is verified and fresh"
+            )
+        else:
+            reasons.append("worker_local_writes_not_enabled")
+            actions.append(
+                "enable worker local writes to take ownership, or keep T3 as "
+                "the local writer"
+            )
+        return LocalWriter.HOLD, reasons, actions
+    if evidence.usable_true():
+        reasons.append("effective_autoPull_true_verified")
+        if config.worker_local_writes_disabled is True:
+            reasons.append("worker_local_writes_disabled")
+            return LocalWriter.T3, reasons, actions
+        reasons.append("worker_local_writes_not_disabled")
+        actions.append(
+            "disable worker local writes before letting T3 own this checkout, "
+            "or flip the override off and take maintenance ownership"
+        )
+        return LocalWriter.HOLD, reasons, actions
+    reasons.extend((f"evidence_{evidence.observed.value}", "fail_closed"))
+    actions.append(
+        "obtain verified fresh effective autoPull evidence from the supported "
+        "Settings UI per-project override; a clean branch or clone read is not enough"
+    )
+    return LocalWriter.HOLD, reasons, actions
+
+
+def _shared_identity_problems(
+    canonicals: tuple[str, ...],
+    owner_groups: tuple[str, ...],
+    urls: tuple[str, ...],
+    writer: LocalWriter | None,
+) -> tuple[LocalWriter, list[str]]:
+    problems: list[str] = []
+    if len(canonicals) > 1 or len(owner_groups) > 1:
+        problems.append("conflicting_canonical_or_owner_identity_fail_closed")
+        writer = LocalWriter.HOLD
+    if len(urls) > 1:
+        problems.append("ambiguous_shared_path_remote_bindings_fail_closed")
+        writer = LocalWriter.HOLD
+    return writer or LocalWriter.HOLD, problems
+
+
+def _remote_binding_problems(
+    canonicals: tuple[str, ...],
+    entries: tuple[Entry, ...],
+    checkouts: tuple[Checkout, ...],
+    writer: LocalWriter | None,
+) -> tuple[LocalWriter, list[str]]:
+    identities = {name.lower() for name in canonicals}
+    identities.update(entry.full_name.lower() for entry in entries)
+    identities.update(
+        entry.personal_fork.lower() for entry in entries if entry.personal_fork
+    )
+    unexpected = tuple(
+        sorted(
+            {
+                checkout.url
+                for checkout in checkouts
+                if checkout.url
+                and (remote_repo(checkout.url) or "").lower() not in identities
+            }
+        )
+    )
+    if unexpected:
+        return LocalWriter.HOLD, [
+            "unexpected_remote_binding_fail_closed:" + ",".join(unexpected)
+        ]
+    return writer or LocalWriter.HOLD, []

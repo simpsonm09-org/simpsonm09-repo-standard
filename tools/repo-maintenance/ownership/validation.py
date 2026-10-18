@@ -26,6 +26,14 @@ from .paths import normalize_path
 def validate(plan_obj: Plan, entries: Sequence[Entry]) -> tuple[str, ...]:
     """Return invariant violations. Empty tuple means the plan is fail-closed."""
     problems: list[str] = []
+    problems.extend(_validate_plan_coverage(plan_obj, entries))
+    problems.extend(_validate_checkout_decisions(plan_obj))
+    problems.extend(_validate_fork_sync_sources(plan_obj, entries))
+    return tuple(problems)
+
+
+def _validate_plan_coverage(plan_obj: Plan, entries: Sequence[Entry]) -> list[str]:
+    problems: list[str] = []
     if plan_obj.mode != MODE_CANDIDATE_ONLY:
         problems.append(f"mode must be {MODE_CANDIDATE_ONLY}")
     if plan_obj.apply_permitted:
@@ -64,6 +72,11 @@ def validate(plan_obj: Plan, entries: Sequence[Entry]) -> tuple[str, ...]:
                 f"inventory {expected_counts.get(owner, 0)}"
             )
 
+    return problems
+
+
+def _validate_checkout_decisions(plan_obj: Plan) -> list[str]:
+    problems: list[str] = []
     for d in plan_obj.checkout_decisions:
         if (
             d.special_class is not None
@@ -107,6 +120,13 @@ def validate(plan_obj: Plan, entries: Sequence[Entry]) -> tuple[str, ...]:
                     "evidence, approval, or worker write posture"
                 )
 
+    return problems
+
+
+def _validate_fork_sync_sources(
+    plan_obj: Plan, entries: Sequence[Entry]
+) -> list[str]:
+    problems: list[str] = []
     entries_by_canonical: dict[str, dict[str, Entry]] = {}
     for entry in entries:
         entries_by_canonical.setdefault(entry.canonical, {})[entry.full_name] = entry
@@ -172,7 +192,7 @@ def validate(plan_obj: Plan, entries: Sequence[Entry]) -> tuple[str, ...]:
                 problems.append(
                     f"{cp.canonical}: fork members do not match source bindings"
                 )
-    return tuple(problems)
+    return problems
 
 
 def validate_manifest_coverage(
