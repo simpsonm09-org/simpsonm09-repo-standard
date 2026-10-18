@@ -28,6 +28,7 @@ This directory holds the repository documentation. Start here, then read the gui
 - [Fleet conformance](features/fleet-conformance.md) describes the two checkers end to end.
 - [Agent access](features/agent-access.md) resolves a repository's agent level, guards pushes, and gates agent shell commands in OpenCode, Claude Code, GitHub Copilot CLI, and Pi.
 - [Repository-maintenance planner](features/repository-maintenance-planner.md) is a pure, planning-only decision unit for cleanup eligibility.
+- [Ownership policy planner](features/maintenance-ownership-policy.md) is a pure, candidate-only decision unit for local, fork-sync, and cleanup ownership.
 
 ## Conventions
 
