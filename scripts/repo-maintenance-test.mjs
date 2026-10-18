@@ -8,7 +8,7 @@
 //
 // This dispatcher uses an existing Python 3.10 or newer interpreter. It installs
 // nothing and never changes the machine interpreter; when none is new enough it
-// prints a skip line and exits zero, like the other thin runners here. Set
+// fails so a successful check always means the suite ran. Set
 // REPO_MAINTENANCE_PYTHON to point at a specific interpreter.
 //
 // Usage:
@@ -59,11 +59,11 @@ export function findPython() {
 export function runTest() {
   const python = findPython();
   if (python === null) {
-    process.stdout.write(
-      `skip: the repository-maintenance planner tests need Python ${MINIMUM.join('.')} or newer on PATH. ` +
+    process.stderr.write(
+      `error: the repository-maintenance planner tests need Python ${MINIMUM.join('.')} or newer on PATH. ` +
         'Install it, or set REPO_MAINTENANCE_PYTHON to the interpreter.\n',
     );
-    return EXIT.OK;
+    return EXIT.FAIL;
   }
   process.stdout.write(
     `repository-maintenance planner tests: ${python.cmd} (Python ${python.version.join('.')})\n`,

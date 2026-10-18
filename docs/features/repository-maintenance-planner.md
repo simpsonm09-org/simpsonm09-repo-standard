@@ -100,7 +100,7 @@ just test-repo-maintenance
 ```
 
 The recipe routes to `node scripts/op.mjs run test-repo-maintenance`, which finds
-an existing Python 3.10 or newer interpreter, or prints a skip line when none is
-present. Set `REPO_MAINTENANCE_PYTHON` to point at a specific interpreter. The
+an existing Python 3.10 or newer interpreter, or fails with a clear error when
+none is present. Set `REPO_MAINTENANCE_PYTHON` to point at a specific interpreter. The
 hosted `repo-maintenance-planner` workflow runs the same operation on Linux,
 Windows, and macOS with Python set up explicitly.
