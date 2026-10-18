@@ -75,6 +75,10 @@ test-portable:
 test-repo-maintenance:
     {{op}} run test-repo-maintenance
 
+# Run the planner dispatcher environment regression checks without launching an interpreter.
+test-repo-maintenance-dispatcher:
+    {{op}} run test-repo-maintenance-dispatcher
+
 # Run the local CI mirror: lint, test, aislop, security, and secret scan.
 verify:
     {{op}} run verify

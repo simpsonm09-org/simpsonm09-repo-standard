@@ -110,6 +110,12 @@
       "description": "Run the pure repository-maintenance planner tests under a host Python 3.10 or newer."
     },
     {
+      "id": "test-repo-maintenance-dispatcher",
+      "kind": "portable",
+      "run": "node scripts/repo-maintenance.test.mjs",
+      "description": "Run the planner dispatcher environment regression checks without launching an interpreter."
+    },
+    {
       "id": "verify",
       "kind": "portable",
       "run": "node scripts/verify.mjs",

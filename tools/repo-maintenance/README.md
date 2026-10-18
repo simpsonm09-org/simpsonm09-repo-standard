@@ -127,9 +127,10 @@ just test-repo-maintenance
 ```
 
 The recipe routes to `node scripts/op.mjs run test-repo-maintenance`, which
-locates an existing Python 3.10 or newer interpreter and fails with a clear
-error when none is found. Set `REPO_MAINTENANCE_PYTHON` to point at a specific
-interpreter. To run the suite by hand from the repository root:
+locates an existing Python 3.10 or newer interpreter from a fixed list of
+interpreter names on `PATH` and fails with a clear error when none is found. The
+dispatcher takes no interpreter from the environment. To run the suite by hand
+from the repository root:
 
 ```bash
 python -B -m unittest discover -v -s tools/repo-maintenance/tests -t tools/repo-maintenance
