@@ -7,3 +7,7 @@ trivy.sarif
 .aislop/history.jsonl
 .aislop/agent/
 .DS_Store
+
+# Python bytecode from the repository-maintenance planner tests
+__pycache__/
+*.py[cod]

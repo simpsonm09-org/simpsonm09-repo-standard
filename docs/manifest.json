@@ -2,7 +2,8 @@
   "readme": true,
   "features": [
     "docs/features/fleet-conformance.md",
-    "docs/features/agent-access.md"
+    "docs/features/agent-access.md",
+    "docs/features/repository-maintenance-planner.md"
   ],
   "diagrams": ["docs/architecture.md"]
 }
