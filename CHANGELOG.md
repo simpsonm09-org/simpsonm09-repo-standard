@@ -10,3 +10,8 @@
   `just test-repo-maintenance` and the hosted `repo-maintenance-planner`
   workflow. The dispatcher selects its interpreter from a fixed list of names on
   `PATH` and takes none from the environment.
+- Add the pure ownership-policy planner under `tools/repo-maintenance/ownership/`.
+  It is candidate only: it turns a fleet inventory and an optional operator config
+  into per-repository local, fork-sync, and cleanup ownership, and ships no
+  executor, no CLI, and no apply step. Its synthetic suite runs through
+  `just test-repo-maintenance` and the hosted `repo-maintenance-planner` workflow.
