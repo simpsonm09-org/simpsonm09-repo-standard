@@ -36,7 +36,7 @@ skip the API checks.
 | `community` | The byte-identical community files match the pinned standard. |
 | `docs` | The [documentation layout](documentation.md) holds. |
 | `scripting` | Recipe bodies stay portable, scripts are declared or twinned, non-vendored skills call `just <recipe>`, and a repo-local skill id is in one skill root. |
-| `env` | A root `.worktreeinclude` lists the local files, each is ignored by `.gitignore`, and every listed path has a committed sibling `.example`. |
+| `env` | Git's index contains no actual `.env` file at any depth, and the pre-push hook rejects such filenames in every proposed ref's reachable history before upload. If a repository opts into the env convention, a root `.worktreeinclude` lists each local file, `.gitignore` ignores it, and each listed path has a committed sibling `.example` template. |
 | `subprocess` | Every `node:child_process` call in a source file passes a literal `windowsHide: true`. See [fleet-conformance.md](features/fleet-conformance.md). |
 | `settings` | The default branch is `main`, the description is set, and the owner topic is present. |
 | `ruleset` | A public repository carries `protect-main`, and its required checks match the repository's coverage state, with a job for each. |

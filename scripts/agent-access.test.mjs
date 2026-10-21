@@ -456,6 +456,10 @@ function writeFakeResolver(baseDir) {
     '',
   ].join('\n');
   writeFileSync(file, body);
+  const shared = join(shadow, 'lib');
+  mkdirSync(shared, { recursive: true });
+  writeFileSync(join(shared, 'env-pre-push.mjs'), readFileSync(join(ROOT, 'scripts', 'lib', 'env-pre-push.mjs')));
+  writeFileSync(join(shared, 'env-path.mjs'), readFileSync(join(ROOT, 'scripts', 'lib', 'env-path.mjs')));
   return file;
 }
 
@@ -485,6 +489,7 @@ function testHook(assert) {
     writeFakeResolver(base);
     const shell = resolveShell();
     const orgUrl = (repo) => `https://github.com/simpsonm09-org/${repo}.git`;
+    const orgScpUrl = (repo) => `git@github.com:simpsonm09-org/${repo}.git`;
     const forkUrl = (repo) => `https://github.com/simpsonm09/${repo}.git`;
     const nest = orgUrl('simpsonm09-fixture-nest');
     const go = orgUrl('simpsonm09-fixture-go');
@@ -496,11 +501,15 @@ function testHook(assert) {
       { name: 'propose denies a main push', ref: 'refs/heads/main', url: nest, exit: 1 },
       { name: 'full allows a main push', ref: 'refs/heads/main', url: go, exit: 0 },
       { name: 'full allows a tag push', ref: 'refs/tags/v1', url: go, exit: 0 },
+      { name: 'full allows an SCP-style organization remote', ref: 'refs/heads/feat/x', url: orgScpUrl('simpsonm09-fixture-go'), exit: 0 },
       { name: 'merge denies a main push', ref: 'refs/heads/main', url: rust, exit: 1 },
       { name: 'merge denies a tag push', ref: 'refs/tags/v1', url: rust, exit: 1 },
       { name: 'read denies a branch push', ref: 'refs/heads/feat/x', url: dotnet, exit: 1 },
+      { name: 'read denies a branch push to an SCP-style organization remote', ref: 'refs/heads/feat/x', url: orgScpUrl('simpsonm09-fixture-dotnet'), exit: 1 },
+      { name: 'read denies a branch push to an HTTP organization remote', ref: 'refs/heads/feat/x', url: 'http://github.com/simpsonm09-org/simpsonm09-fixture-dotnet.git', exit: 1 },
       { name: 'read denies a tag push', ref: 'refs/tags/v1', url: dotnet, exit: 1 },
       { name: 'a fork remote is out of scope', ref: 'refs/heads/main', url: forkUrl('simpsonm09-fixture-dotnet'), exit: 0 },
+      { name: 'an SCP-style personal fork remote is out of scope', ref: 'refs/heads/main', url: `git@github.com:simpsonm09/simpsonm09-fixture-dotnet.git`, exit: 0 },
     ];
 
     for (const { name, ref, url, exit } of cases) {

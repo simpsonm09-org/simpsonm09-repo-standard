@@ -63,7 +63,7 @@ Dependabot has no shareable preset, so the file lives in each repository. The st
 
 Copy `.editorconfig`, `.gitattributes`, and `.gitignore` entries of interest. Mark generated files in `.gitattributes` with `linguist-generated` so Flint and GitHub both skip them.
 
-When `.gitignore` ignores a local `.env`, keep a committed sibling `.env.example`, list the local file in a root `.worktreeinclude`, and start from [`templates/.env.example`](../templates/.env.example) and [`templates/.worktreeinclude`](../templates/.worktreeinclude). A real `.env` is never committed and never deleted, and the `env` group checks that the example and the include stay in sync. See [`features/fleet-conformance.md`](features/fleet-conformance.md).
+Never commit or push actual `.env` files or runtime variants, even when they contain no secrets or were later deleted from the branch. The pre-push guard checks filenames in reachable commit history without reading blobs; the `env` group also checks the index. Commit a sibling `.example` template, ignore the local file, and list it in the root `.worktreeinclude` so worktrees can copy it. Start from [`templates/.env.example`](../templates/.env.example) and [`templates/.worktreeinclude`](../templates/.worktreeinclude). The `env` group checks the index, ignore rule, example, and include. See [`features/fleet-conformance.md`](features/fleet-conformance.md).
 
 ## 9. Add the documentation layout
 

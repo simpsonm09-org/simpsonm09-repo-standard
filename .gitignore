@@ -8,6 +8,11 @@ trivy.sarif
 .aislop/agent/
 .DS_Store
 
+# Local environment files; keep the committed scaffold visible.
+[.][eE][nN][vV]
+[.][eE][nN][vV].*
+![.][eE][nN][vV].example
+
 # Python bytecode from the repository-maintenance planner tests
 __pycache__/
 *.py[cod]
