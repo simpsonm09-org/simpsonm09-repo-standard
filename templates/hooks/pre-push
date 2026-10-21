@@ -9,11 +9,37 @@
 remote="$1"
 url="$2"
 
+# Check actual env filenames before any remote-policy early return, including
+# pushes to a personal fork. Resolve the reusable helper from the canonical
+# sibling clone, or from this repository when testing/installing the standard.
+common=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+[ -z "$common" ] && common=$(git rev-parse --git-common-dir 2>/dev/null)
+clone=$(dirname "$common")
+guard="$clone/../simpsonm09-repo-standard/scripts/lib/env-pre-push.mjs"
+if [ ! -f "$guard" ]; then
+  root=$(git rev-parse --show-toplevel 2>/dev/null)
+  guard="$root/scripts/lib/env-pre-push.mjs"
+fi
+if [ ! -f "$guard" ]; then
+  echo "env/pre-push: shared filename guard is missing; refusing the push" >&2
+  exit 1
+fi
+refs=$(mktemp) || exit 1
+if ! cat > "$refs"; then
+  rm -f "$refs"
+  echo "env/pre-push: could not capture proposed refs; refusing the push" >&2
+  exit 1
+fi
+if ! node "$guard" < "$refs"; then
+  rm -f "$refs"
+  exit 1
+fi
+
 # Only the organization remote is governed. The personal fork is a private
 # mirror and out of scope, so fork alignment keeps working.
 case "$url" in
-  *github.com/simpsonm09-org/*) ;;
-  *) exit 0 ;;
+  *github.com/simpsonm09-org/*|*github.com:simpsonm09-org/*) ;;
+  *) rm -f "$refs"; exit 0 ;;
 esac
 
 repo=$(basename "$url" .git)
@@ -42,7 +68,8 @@ while read -r local_ref local_sha remote_ref remote_sha; do
     echo "agent-access: $repo denies $capability, so the push of $remote_ref to $remote is refused" >&2
     status=1
   fi
-done
+done < "$refs"
+rm -f "$refs"
 
 if [ "$status" -ne 0 ]; then
   echo "agent-access: raise the level for $repo in repo-catalog/repos.json to allow this push" >&2

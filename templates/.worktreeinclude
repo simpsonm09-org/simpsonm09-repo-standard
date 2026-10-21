@@ -1,1 +1,2 @@
+# Copy ignored local configuration; commit only its .env.example scaffold.
 .env

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Reject actual `.env` files and runtime variants in Git's index and before any push, including personal-fork pushes and filenames later deleted in branch history. Keep `.env.example` templates tracked and local `.env` files in `.worktreeinclude` so worktrees can copy them.
 - Scope GitHub App installation tokens to the requested repository. Existing
   installation permission defaults remain unchanged.
 - Add the pure repository-maintenance planner under `tools/repo-maintenance/`. It

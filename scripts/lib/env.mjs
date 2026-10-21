@@ -1,47 +1,40 @@
+import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { basename, join, resolve } from 'node:path';
+import { isAbsolute, join, resolve } from 'node:path';
 import { normalize, readText, toPosix } from './tree.mjs';
+import { isActualEnvPath } from './env-path.mjs';
 
 // The env convention. A repository that ignores a local `.env` must ship a
 // committed sibling `.env.example` and list the local file in a root
 // `.worktreeinclude`. The checker reports stable `env/<rule>` ids.
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function ignoredBy(root, rel) {
+  try {
+    execFileSync('git', ['-C', root, 'check-ignore', '--no-index', '-q', '--', rel], {
+      windowsHide: true,
+      stdio: 'ignore',
+    });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
-function compileIgnoreRule(pattern) {
-  let body = '';
-  for (const char of pattern) {
-    body += char === '*' ? '[^/]*' : escapeRegExp(char);
+function ignoredByLocalGitignore(root, rel) {
+  try {
+    const output = execFileSync('git', ['-C', root, 'check-ignore', '--no-index', '-v', '-z', '--stdin'], {
+      windowsHide: true,
+      encoding: 'utf8',
+      input: `${rel}\0`,
+      stdio: ['pipe', 'pipe', 'ignore'],
+    });
+    const [source, , pattern] = output.split('\0');
+    const sourcePath = source?.split(':', 1)[0];
+    if (!sourcePath || isAbsolute(sourcePath) || !(sourcePath === '.gitignore' || sourcePath.endsWith('/.gitignore')) || pattern?.startsWith('!')) return false;
+    execFileSync('git', ['-C', root, 'ls-files', '--error-unmatch', '--', sourcePath], { windowsHide: true, stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
   }
-  return { anchored: pattern.includes('/'), regex: new RegExp(`^${body}$`) };
-}
-
-function readGitignore(root) {
-  const file = join(root, '.gitignore');
-  if (!existsSync(file)) return [];
-  const rules = [];
-  for (const raw of normalize(readText(file)).replace(/\r\n/g, '\n').split('\n')) {
-    const line = raw.trim();
-    if (!line || line.startsWith('#')) continue;
-    const negated = line.startsWith('!');
-    const pattern = (negated ? line.slice(1) : line).replace(/^\//, '').replace(/\/$/, '');
-    if (!pattern) continue;
-    rules.push({ negated, ...compileIgnoreRule(pattern) });
-  }
-  return rules;
-}
-
-// A rule without a slash matches a basename at any depth; a rule with one is
-// anchored to the repository root. The last matching rule decides, so a later
-// negation un-ignores a path.
-function ignoredBy(rules, rel) {
-  const base = basename(rel);
-  let ignored = false;
-  for (const rule of rules) {
-    if (rule.regex.test(rule.anchored ? rel : base)) ignored = !rule.negated;
-  }
-  return ignored;
 }
 
 function worktreeincludePaths(root) {
@@ -57,14 +50,43 @@ function worktreeincludePaths(root) {
 
 export function checkEnv(root, add) {
   const repoRoot = resolve(root);
-  const rules = readGitignore(repoRoot);
+  let tracked = [];
+  const isGit = existsSync(join(repoRoot, '.git'));
+  if (!isGit) return;
+  try {
+    execFileSync('git', ['-C', repoRoot, 'rev-parse', '--show-toplevel'], {
+      windowsHide: true,
+      stdio: 'ignore',
+    });
+    tracked = execFileSync('git', ['-C', repoRoot, 'ls-files', '-z'], {
+      windowsHide: true,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).split('\0').filter(Boolean);
+  } catch {
+    add('env/index', 'Git could not read the repository index');
+    return;
+  }
+
+  for (const rel of tracked) {
+    if (isActualEnvPath(rel)) {
+      add('env/tracked', `${rel} is tracked; actual .env files must stay local`);
+    }
+  }
+
   const includeFile = join(repoRoot, '.worktreeinclude');
   const hasInclude = existsSync(includeFile);
-  if (!hasInclude && !ignoredBy(rules, '.env')) return;
+  const ignoresEnv = ignoredBy(repoRoot, '.env');
+  const locallyIgnoresEnv = ignoredByLocalGitignore(repoRoot, '.env');
+  if (!hasInclude && !ignoresEnv) return;
 
   if (!hasInclude) {
     add('env/worktreeinclude', '.gitignore ignores .env but there is no root .worktreeinclude');
     return;
+  }
+
+  if (ignoresEnv && !locallyIgnoresEnv) {
+    add('env/ignore', '.env must be ignored by the repository .gitignore, not only a machine-wide exclude');
   }
 
   const paths = worktreeincludePaths(repoRoot);
@@ -74,14 +96,17 @@ export function checkEnv(root, add) {
   }
 
   for (const rel of paths) {
-    if (!ignoredBy(rules, rel)) {
+    if (!ignoredByLocalGitignore(repoRoot, rel)) {
       add('env/worktreeinclude-path', `.worktreeinclude lists ${rel}, which .gitignore does not ignore`);
+      continue;
     }
     const example = `${rel}.example`;
     if (!existsSync(join(repoRoot, example))) {
       add('env/example', `${rel} has no sibling ${example}`);
-    } else if (ignoredBy(rules, example)) {
+    } else if (ignoredBy(repoRoot, example)) {
       add('env/example', `${example} must not be ignored by .gitignore`);
+    } else if (!tracked.some((path) => path.toLowerCase() === example.toLowerCase())) {
+      add('env/example', `${example} must be tracked as the committed template`);
     }
   }
 }
