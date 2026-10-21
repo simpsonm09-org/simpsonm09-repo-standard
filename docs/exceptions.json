@@ -31,6 +31,12 @@
       "date": "2026-10-12"
     },
     {
+      "repo": "simpsonm09-org/simpsonm09-dev-setup",
+      "checks": ["env/worktreeinclude-path"],
+      "reason": "The only local env file in this repository is services/infisical/.env, which holds the secrets broker's own root credentials, so it must not be copied into worktrees. The .worktreeinclude keeps a comment and lists no paths, and dev-setup's own check rejects any credential-looking entry. Revisit when the env rule accepts a repository that copies no local files on purpose.",
+      "date": "2026-10-21"
+    },
+    {
       "repo": "simpsonm09-org/simpsonm09-org-ai-plugin",
       "checks": ["community/.aislop/config.yml"],
       "reason": "The aislop dependency audit is off because the transitive http-cache-semantics 4.2.0 carries CVE-2026-93748 with no fixed version, and the Trivy scan is the dependency gate. The divergence is documented in the file.",
