@@ -48,6 +48,28 @@ function worktreeincludePaths(root) {
   return out;
 }
 
+function checkIncludePaths(repoRoot, paths, tracked, add) {
+  if (paths.length === 0) {
+    add('env/worktreeinclude-path', '.worktreeinclude lists no paths');
+    return;
+  }
+
+  for (const rel of paths) {
+    if (!ignoredByLocalGitignore(repoRoot, rel)) {
+      add('env/worktreeinclude-path', `.worktreeinclude lists ${rel}, which .gitignore does not ignore`);
+      continue;
+    }
+    const example = `${rel}.example`;
+    if (!existsSync(join(repoRoot, example))) {
+      add('env/example', `${rel} has no sibling ${example}`);
+    } else if (ignoredBy(repoRoot, example)) {
+      add('env/example', `${example} must not be ignored by .gitignore`);
+    } else if (!tracked.some((path) => path.toLowerCase() === example.toLowerCase())) {
+      add('env/example', `${example} must be tracked as the committed template`);
+    }
+  }
+}
+
 export function checkEnv(root, add) {
   const repoRoot = resolve(root);
   let tracked = [];
@@ -89,24 +111,5 @@ export function checkEnv(root, add) {
     add('env/ignore', '.env must be ignored by the repository .gitignore, not only a machine-wide exclude');
   }
 
-  const paths = worktreeincludePaths(repoRoot);
-  if (paths.length === 0) {
-    add('env/worktreeinclude-path', '.worktreeinclude lists no paths');
-    return;
-  }
-
-  for (const rel of paths) {
-    if (!ignoredByLocalGitignore(repoRoot, rel)) {
-      add('env/worktreeinclude-path', `.worktreeinclude lists ${rel}, which .gitignore does not ignore`);
-      continue;
-    }
-    const example = `${rel}.example`;
-    if (!existsSync(join(repoRoot, example))) {
-      add('env/example', `${rel} has no sibling ${example}`);
-    } else if (ignoredBy(repoRoot, example)) {
-      add('env/example', `${example} must not be ignored by .gitignore`);
-    } else if (!tracked.some((path) => path.toLowerCase() === example.toLowerCase())) {
-      add('env/example', `${example} must be tracked as the committed template`);
-    }
-  }
+  checkIncludePaths(repoRoot, worktreeincludePaths(repoRoot), tracked, add);
 }
