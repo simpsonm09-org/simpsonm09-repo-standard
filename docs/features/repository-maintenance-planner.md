@@ -45,10 +45,21 @@ or invalid time inputs produce `UNKNOWN`. Missing or malformed binding and
 settlement values also become `UNKNOWN`; bound and running evidence continue to
 hold cleanup.
 
+`evaluate_t3_observation(record, now, max_age)` is the pure input boundary for a
+serialized JSON-like activity record. Its closed shape is exactly
+`{"observed_at": <string>, "binding": <string>, "settlement": <string>}`.
+Missing or additional keys, wrong value types, or invalid timestamps fail
+closed. The function delegates valid-shaped input to
+`evaluate_t3_activity`, so freshness is derived from the injected clock and
+maximum age; a serialized freshness enum is not accepted. This synthetic shape
+is a contract for a possible future producer only. It does not define real T3
+payloads or establish identifiers, provenance, collection, or live automation.
+
 Directly constructed `T3Activity` values remain accepted for existing snapshot
 producers. Their freshness enum remains a producer assertion and does not prove
-that timestamp evidence was checked. The planner ships no activity collector
-and does not independently revalidate timestamps.
+that timestamp evidence was checked. This compatibility path is documented as
+legacy; the planner ships no activity collector and does not independently
+revalidate timestamps.
 
 The module imports only `__future__`, `dataclasses`, `datetime`, `enum`, and
 `pathlib`. Its test suite asserts that import set and rejects any I/O or

@@ -23,6 +23,17 @@ future, or invalid time inputs produce `UNKNOWN`. Timezone offsets are compared
 as UTC instants. Missing or malformed binding and settlement values become
 `UNKNOWN`; bound and running values remain holds in the planner.
 
+For a serialized, JSON-like input boundary, `evaluate_t3_observation(record,
+now, max_age)` accepts a plain dictionary with exactly three string fields:
+`observed_at`, `binding`, and `settlement`. It rejects missing or extra fields
+and wrong value types as fully `UNKNOWN`, then delegates well-shaped records to
+`evaluate_t3_activity`. A serialized `freshness` claim is therefore rejected;
+freshness comes only from the injected clock and maximum age. This shape is a
+synthetic future-producer contract, not a discovered T3 schema, collector,
+identity, or proof of provenance. It performs no I/O. Existing callers may
+continue constructing `T3Activity` directly for compatibility; in that legacy
+path freshness remains a producer assertion.
+
 Direct construction of `T3Activity` remains accepted for compatibility with
 existing snapshot producers. In that path, `FRESH` is still a producer claim;
 it does not prove that a timestamp was evaluated. The planner has no activity

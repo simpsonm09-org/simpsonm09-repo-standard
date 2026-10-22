@@ -2,6 +2,7 @@
 module's own source in the structural guard."""
 
 import ast
+import json
 import pathlib
 import unittest
 from dataclasses import replace
@@ -12,7 +13,7 @@ from planner import (
     ActivityBinding, ActivityFreshness, ActivitySettlement, BranchSnapshot,
     CleanupOwner, DeleteBranch, Policy, RemoveEligibleWorktree, Skip,
     SkipReason, Snapshot, T3Activity, WorktreeBinding, evaluate_t3_activity,
-    plan_cleanup,
+    evaluate_t3_observation, plan_cleanup,
 )
 
 NOW = datetime(2026, 10, 17, 12, tzinfo=timezone.utc)
@@ -405,6 +406,57 @@ class T3ActivityEvidenceTests(unittest.TestCase):
             one(snapshot, policy(t3_disabled=False)),
             Skip("feature", SkipReason.T3_CLEANUP_NOT_DISABLED),
         )
+
+    def test_serialized_observation_composes_through_snapshot_and_cleanup_plan(self):
+        def observe(record):
+            serialized = json.dumps(record)
+            decoded = json.loads(serialized)
+            activity = evaluate_t3_observation(decoded, NOW, self.max_age)
+            branch = replace(
+                BRANCH,
+                activity=activity,
+                worktree_bindings=(replace(BINDING, activity=activity),),
+            )
+            return on_branch(branch)
+
+        fresh_record = {
+            "observed_at": (NOW - timedelta(minutes=1)).isoformat(),
+            "binding": "unbound",
+            "settlement": "settled",
+        }
+        self.assertEqual(
+            one(observe(fresh_record), policy()),
+            RemoveEligibleWorktree("C:\\worktrees\\feature", "feature", "abc123"),
+        )
+        self.assertEqual(
+            one(observe(fresh_record), policy(owner=CleanupOwner.T3)),
+            Skip("feature", SkipReason.T3_OWNS_WORKTREE),
+        )
+        self.assertEqual(
+            one(observe(fresh_record), policy(t3_disabled=False)),
+            Skip("feature", SkipReason.T3_CLEANUP_NOT_DISABLED),
+        )
+
+        held_records = (
+            ({**fresh_record, "observed_at": (NOW - timedelta(minutes=6)).isoformat()},
+             SkipReason.ACTIVITY_UNKNOWN),
+            ({**fresh_record, "observed_at": (NOW + timedelta(seconds=1)).isoformat()},
+             SkipReason.ACTIVITY_UNKNOWN),
+            ({**fresh_record, "observed_at": "not-a-timestamp"},
+             SkipReason.ACTIVITY_UNKNOWN),
+            ({"observed_at": fresh_record["observed_at"], "binding": "unbound"},
+             SkipReason.ACTIVITY_UNKNOWN),
+            ({**fresh_record, "freshness": "fresh"}, SkipReason.ACTIVITY_UNKNOWN),
+            ({**fresh_record, "binding": "not-a-binding"}, SkipReason.ACTIVITY_UNKNOWN),
+            ({**fresh_record, "binding": "bound"}, SkipReason.ACTIVITY_BOUND),
+            ({**fresh_record, "settlement": "running"}, SkipReason.ACTIVITY_BOUND),
+            ({**fresh_record, "settlement": 3}, SkipReason.ACTIVITY_UNKNOWN),
+        )
+        for record, reason in held_records:
+            with self.subTest(record=record):
+                self.assertEqual(
+                    one(observe(record), policy()), Skip("feature", reason)
+                )
 
     # --- structural guards ------------------------------------------------
 

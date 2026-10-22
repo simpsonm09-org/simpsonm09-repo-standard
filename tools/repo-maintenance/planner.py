@@ -123,6 +123,32 @@ def evaluate_t3_activity(
     )
 
 
+def evaluate_t3_observation(
+    record: dict[str, object],
+    now: datetime,
+    max_age: timedelta,
+) -> T3Activity:
+    """Evaluate a closed JSON-like observation record as T3 activity evidence.
+
+    The record must contain exactly ``observed_at``, ``binding``, and
+    ``settlement``, each as a string. Freshness is always derived by
+    :func:`evaluate_t3_activity`; serialized freshness claims are rejected.
+    This is a pure input boundary, not a real T3 schema or provenance check.
+    """
+    fields = {"observed_at", "binding", "settlement"}
+    if (type(record) is not dict or record.keys() != fields
+            or any(type(value) is not str for value in record.values())):
+        return T3Activity(
+            ActivityFreshness.UNKNOWN,
+            ActivityBinding.UNKNOWN,
+            ActivitySettlement.UNKNOWN,
+        )
+
+    return evaluate_t3_activity(
+        record["observed_at"], now, max_age, record["binding"], record["settlement"]
+    )
+
+
 @dataclass(frozen=True)
 class WorktreeBinding:
     path: str
