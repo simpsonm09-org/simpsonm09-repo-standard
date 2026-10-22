@@ -230,7 +230,13 @@ function testDestinationPolicy(assert) {
   const dotnet = 'simpsonm09-fixture-dotnet';
   const at = (localRepo, destination, host = 'github.com') =>
     resolveDestination({ roster, ownedForks: OWNED_FORKS, ownedRepositories: OWNED_REPOSITORIES, localRepo, host, destination });
+  testRecognizedDestinations(assert, at, nest, dotnet);
+  testInvalidOwnedPolicies(assert, roster, nest);
+  testClosedDestinations(assert, roster, nest);
+  testDestinationGrants(assert, at, nest, dotnet);
+}
 
+function testRecognizedDestinations(assert, at, nest, dotnet) {
   const recognized = [
     { name: 'the organization repository', local: nest, destination: `simpsonm09-org/${nest}`, kind: 'org', level: 'propose', source: 'org' },
     { name: 'a differently cased organization repository', local: nest, destination: 'SimpsonM09-Org/SimpsonM09-Fixture-Nest', kind: 'org', level: 'propose', source: 'org' },
@@ -259,7 +265,9 @@ function testDestinationPolicy(assert) {
     const target = at(local, destination, host);
     assert(target.kind === 'unknown' && target.level === 'none', `${name} is unknown and level none, got ${target.kind}/${target.level}`);
   }
+}
 
+function testInvalidOwnedPolicies(assert, roster, nest) {
   assert(resolveOwnedFork(OWNED_FORKS, OWNED_ENTRY.repository.split('/')[0], OWNED_ENTRY.repository.split('/')[1]).owned === true, 'the fixture target matches itself');
   assert(resolveOwnedFork(OWNED_FORKS, OWNED_ENTRY.repository.split('/')[0].toUpperCase(), OWNED_ENTRY.repository.split('/')[1].toUpperCase()).owned === true, 'the owned-fork match is case-insensitive');
   assert(resolveOwnedFork(OWNED_FORKS, OWNED_ENTRY.repository.split('/')[0], 'other').owned === false, 'an unrelated repository is not an owned fork');
@@ -290,7 +298,9 @@ function testDestinationPolicy(assert) {
   assert(mixedTarget.kind === 'unknown' && mixedTarget.level === 'none', `a mixed-owner policy collapses nothing, got ${mixedTarget.kind}/${mixedTarget.level}`);
   const mixedFork = resolveDestination({ roster, ownedForks: mixedOwners, localRepo: nest, host: 'github.com', destination: `simpsonm09/${nest}` });
   assert(mixedFork.kind === 'unknown', `a mixed-owner policy admits no personal push fork, got ${mixedFork.kind}`);
+}
 
+function testClosedDestinations(assert, roster, nest) {
   const closed = [
     { name: 'a personal push fork', local: nest, destination: `simpsonm09/${nest}` },
     { name: 'an owned fork', local: 'pstack-max', destination: OWNED_ENTRY.repository },
@@ -303,7 +313,9 @@ function testDestinationPolicy(assert) {
   assert(noRoster.kind === 'unknown', 'a missing roster closes the organization and personal-fork kinds');
   const rosterlessOwned = resolveDestination({ roster: null, ownedForks: OWNED_FORKS, localRepo: 'pstack-max', host: 'github.com', destination: OWNED_ENTRY.repository });
   assert(rosterlessOwned.kind === 'owned-fork', 'an owned fork resolves without the roster');
+}
 
+function testDestinationGrants(assert, at, nest, dotnet) {
   assert(CAPABILITIES_BY_KIND.org === null, 'the org kind defers to the level table');
   const ownedGrant = CAPABILITIES_BY_KIND['owned-fork'];
   assert(ownedGrant.every((capability) => CAPABILITIES.propose.includes(capability)), 'the owned-fork grant is a subset of propose');
@@ -311,6 +323,7 @@ function testDestinationPolicy(assert) {
 
   const owned = at('pstack-max', OWNED_ENTRY.repository);
   const standalone = at('simpsonm09', PROFILE_REPOSITORY);
+  const orgPropose = at(nest, `simpsonm09-org/${nest}`);
   const push = (extra) => ({
     operation: 'push',
     capability: 'pushBranch',
@@ -367,6 +380,20 @@ function testDestinationPolicy(assert) {
     const { allowed, reason } = decideTarget(standalone, intent);
     assert(allowed === expected, `a standalone owned repository ${expected ? 'allows' : 'denies'} ${name} (${reason})`);
   }
+  assert(decideTarget(at('simpsonm09', 'acme/other'), push()).allowed === false, 'a third-party destination denies a branch push');
+
+  const orgRead = at(dotnet, `simpsonm09-org/${dotnet}`);
+  assert(decideTarget(orgPropose, push()).allowed === true, 'a propose repository allows a branch push');
+  assert(decideTarget(orgPropose, push({ capability: 'pushMain' })).allowed === false, 'a propose repository denies a main push');
+  assert(decideTarget(orgPropose, push({ capability: 'mergePr' })).allowed === false, 'a propose repository denies a merge');
+  assert(decideTarget(orgRead, push()).allowed === false, 'a read repository denies a branch push');
+  assert(decideTarget(orgPropose, push({ resolved: false })).allowed === true, 'an org destination keeps its level when the ref is unresolved');
+
+  testPullRequestSides(assert, owned, standalone, push);
+  testIntentConsistency(assert, at, push, orgPropose);
+}
+
+function testPullRequestSides(assert, owned, standalone, push) {
   const prSideCases = [
     ['an omitted side', undefined, true],
     ['a branch-only side', { branch: 'feat/x' }, true],
@@ -390,16 +417,9 @@ function testDestinationPolicy(assert) {
       }
     }
   }
-  assert(decideTarget(at('simpsonm09', 'acme/other'), push()).allowed === false, 'a third-party destination denies a branch push');
+}
 
-  const orgPropose = at(nest, `simpsonm09-org/${nest}`);
-  const orgRead = at(dotnet, `simpsonm09-org/${dotnet}`);
-  assert(decideTarget(orgPropose, push()).allowed === true, 'a propose repository allows a branch push');
-  assert(decideTarget(orgPropose, push({ capability: 'pushMain' })).allowed === false, 'a propose repository denies a main push');
-  assert(decideTarget(orgPropose, push({ capability: 'mergePr' })).allowed === false, 'a propose repository denies a merge');
-  assert(decideTarget(orgRead, push()).allowed === false, 'a read repository denies a branch push');
-  assert(decideTarget(orgPropose, push({ resolved: false })).allowed === true, 'an org destination keeps its level when the ref is unresolved');
-
+function testIntentConsistency(assert, at, push, orgPropose) {
   // An intent that contradicts itself about writing denies, whatever the
   // destination grants: the null-capability read path is not a way to launder a
   // write, and the reason names the mismatch. The last case is the one a

@@ -177,30 +177,38 @@ function ownedRepositoriesErrors(policy, ownedForks) {
   const errors = [];
   if (!Object.keys(policy).every((key) => key === 'repositories')) errors.push('an unknown top-level field');
   if (!Array.isArray(policy.repositories)) return [...errors, 'repositories is not an array'];
+  const occupied = occupiedOwnedForkIdentities(ownedForks);
+  const seen = new Set();
+  for (const [index, entry] of policy.repositories.entries()) {
+    errors.push(...ownedRepositoryEntryErrors(entry, index, occupied, seen));
+  }
+  return errors;
+}
+
+function occupiedOwnedForkIdentities(ownedForks) {
   const occupied = new Set();
   for (const fork of trustedOwnedForks(ownedForks)?.forks ?? []) {
     if (isFullyQualified(fork.repository)) occupied.add(fork.repository.toLowerCase());
     if (isFullyQualified(fork.upstream)) occupied.add(fork.upstream.toLowerCase());
   }
-  const seen = new Set();
-  for (const [index, entry] of policy.repositories.entries()) {
-    const label = `repositories[${index}]`;
-    if (entry === null || typeof entry !== 'object' || Array.isArray(entry)) {
-      errors.push(`${label} is not an object`);
-      continue;
-    }
-    if (!Object.keys(entry).every((key) => ['repository', 'agentAccess'].includes(key))) errors.push(`${label} has an unknown field`);
-    if (!isFullyQualified(entry.repository)) {
-      errors.push(`${label}.repository is not an owner/repository identity`);
-    } else {
-      const identity = entry.repository.toLowerCase();
-      if (entry.repository.split('/')[0].toLowerCase() !== OWNED_OWNER) errors.push(`${label}.repository is not owned by ${OWNED_OWNER}`);
-      if (seen.has(identity)) errors.push(`${label}.repository duplicates an earlier entry`);
-      if (occupied.has(identity)) errors.push(`${label}.repository collides with an owned-fork target or upstream`);
-      seen.add(identity);
-    }
-    if (entry.agentAccess !== 'propose') errors.push(`${label}.agentAccess is not propose`);
+  return occupied;
+}
+
+function ownedRepositoryEntryErrors(entry, index, occupied, seen) {
+  const label = `repositories[${index}]`;
+  if (entry === null || typeof entry !== 'object' || Array.isArray(entry)) return [`${label} is not an object`];
+  const errors = [];
+  if (!Object.keys(entry).every((key) => ['repository', 'agentAccess'].includes(key))) errors.push(`${label} has an unknown field`);
+  if (!isFullyQualified(entry.repository)) {
+    errors.push(`${label}.repository is not an owner/repository identity`);
+  } else {
+    const identity = entry.repository.toLowerCase();
+    if (entry.repository.split('/')[0].toLowerCase() !== OWNED_OWNER) errors.push(`${label}.repository is not owned by ${OWNED_OWNER}`);
+    if (seen.has(identity)) errors.push(`${label}.repository duplicates an earlier entry`);
+    if (occupied.has(identity)) errors.push(`${label}.repository collides with an owned-fork target or upstream`);
+    seen.add(identity);
   }
+  if (entry.agentAccess !== 'propose') errors.push(`${label}.agentAccess is not propose`);
   return errors;
 }
 
