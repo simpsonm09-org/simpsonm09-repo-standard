@@ -35,9 +35,20 @@ The caller assembles three inputs from its own observation.
 - `Policy` holds the clock, the retention window, the single cleanup owner, and
   the explicit `maintenance_t3_cleanup_disabled` switch.
 
-`T3Activity` carries three enums for freshness, binding, and settlement. These
-are claims the snapshot producer supplies. The planner does not derive freshness
-from timestamps and ships no activity collector.
+`evaluate_t3_activity(observed_at, now, max_age, binding, settlement)` is the
+timestamp-aware entry point for T3 evidence. It returns the existing
+`T3Activity` shape, so callers can pass that result through the current snapshot
+and `plan_cleanup` path. It compares aware timestamps as UTC instants. The
+maximum-age boundary is inclusive: an observation exactly `max_age` old is
+`FRESH`, and an older observation is `STALE`. Missing, malformed, naive, future,
+or invalid time inputs produce `UNKNOWN`. Missing or malformed binding and
+settlement values also become `UNKNOWN`; bound and running evidence continue to
+hold cleanup.
+
+Directly constructed `T3Activity` values remain accepted for existing snapshot
+producers. Their freshness enum remains a producer assertion and does not prove
+that timestamp evidence was checked. The planner ships no activity collector
+and does not independently revalidate timestamps.
 
 The module imports only `__future__`, `dataclasses`, `datetime`, `enum`, and
 `pathlib`. Its test suite asserts that import set and rejects any I/O or

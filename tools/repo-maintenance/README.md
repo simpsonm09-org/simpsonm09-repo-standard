@@ -12,9 +12,21 @@ evidence, does not observe live repository state, and cannot tell whether a
 snapshot is truthful or current. A caller must treat every action as a proposal
 that a separate, independently safeguarded executor re-verifies before acting.
 
-The three T3 activity enums are claims supplied by the snapshot producer. The
-planner does not derive their freshness from timestamps and implements no
-activity collector.
+For timestamp-backed T3 evidence, callers should use
+`evaluate_t3_activity(observed_at, now, max_age, binding, settlement)` and pass
+its `T3Activity` result through the existing `BranchSnapshot` or
+`WorktreeBinding` activity field. This pure evaluator derives freshness from an
+observed timestamp, an injected aware clock, and an explicit non-negative
+maximum age. The maximum-age boundary is inclusive: an observation exactly that
+old is `FRESH`; an older observation is `STALE`. Missing, malformed, naive,
+future, or invalid time inputs produce `UNKNOWN`. Timezone offsets are compared
+as UTC instants. Missing or malformed binding and settlement values become
+`UNKNOWN`; bound and running values remain holds in the planner.
+
+Direct construction of `T3Activity` remains accepted for compatibility with
+existing snapshot producers. In that path, `FRESH` is still a producer claim;
+it does not prove that a timestamp was evaluated. The planner has no activity
+collector and does not independently revalidate timestamps.
 
 ## Eligibility
 

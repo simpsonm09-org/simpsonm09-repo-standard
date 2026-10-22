@@ -16,3 +16,7 @@
   into per-repository local, fork-sync, and cleanup ownership, and ships no
   executor, no CLI, and no apply step. Its synthetic suite runs through
   `just test-repo-maintenance` and the hosted `repo-maintenance-planner` workflow.
+- Add a pure T3 activity evidence evaluator to the cleanup planner. It derives
+  freshness from an observed timestamp, an injected aware clock, and an explicit
+  maximum age, while unknown, bound, and running evidence continues to hold.
+  Direct `T3Activity` construction remains a caller assertion for compatibility.
