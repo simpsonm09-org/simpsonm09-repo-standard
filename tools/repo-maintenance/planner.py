@@ -10,7 +10,7 @@ executor must re-observe live state before it acts.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import PurePosixPath, PureWindowsPath
 
@@ -40,11 +40,87 @@ class ActivitySettlement(str, Enum):
 
 @dataclass(frozen=True)
 class T3Activity:
-    """T3 session evidence. Only explicit fresh/unbound/settled clears the gate."""
+    """T3 session evidence. Only explicit fresh/unbound/settled clears the gate.
+
+    Callers with timestamp evidence should build this value with
+    :func:`evaluate_t3_activity`. Direct construction remains supported for
+    existing snapshot producers and still represents producer-supplied claims.
+    """
 
     freshness: ActivityFreshness
     binding: ActivityBinding
     settlement: ActivitySettlement
+
+
+def _parse_activity_time(observed_at: datetime | str | None) -> datetime | None:
+    if isinstance(observed_at, datetime):
+        return observed_at
+    if not isinstance(observed_at, str):
+        return None
+    try:
+        value = observed_at[:-1] + "+00:00" if observed_at.endswith(("Z", "z")) else observed_at
+        return datetime.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+def _is_aware(value: datetime) -> bool:
+    try:
+        return value.tzinfo is not None and value.utcoffset() is not None
+    except (OverflowError, TypeError, ValueError):
+        return False
+
+
+def _activity_enum(value: object, enum_type: type[ActivityBinding | ActivitySettlement]):
+    if isinstance(value, enum_type):
+        return value
+    if isinstance(value, str):
+        try:
+            return enum_type(value)
+        except ValueError:
+            return enum_type.UNKNOWN
+    return enum_type.UNKNOWN
+
+
+def evaluate_t3_activity(
+    observed_at: datetime | str | None,
+    now: datetime,
+    max_age: timedelta,
+    binding: ActivityBinding | str | None,
+    settlement: ActivitySettlement | str | None,
+) -> T3Activity:
+    """Derive T3 freshness and preserve binding and settlement evidence.
+
+    Freshness is inclusive at the maximum-age boundary: an observation exactly
+    ``max_age`` old is fresh. Naive, malformed, missing, future, or otherwise
+    invalid time evidence and invalid bounds produce UNKNOWN. A valid timestamp
+    older than ``max_age`` produces STALE. Timestamps are compared in UTC.
+    Binding and settlement values are parsed independently; missing or malformed
+    values become UNKNOWN so the cleanup planner continues to hold them.
+    """
+    freshness = ActivityFreshness.UNKNOWN
+    timestamp = _parse_activity_time(observed_at)
+    if (timestamp is not None and isinstance(now, datetime)
+            and isinstance(max_age, timedelta) and max_age >= timedelta(0)
+            and _is_aware(timestamp) and _is_aware(now)):
+        try:
+            observed_utc = timestamp.astimezone(timezone.utc)
+            now_utc = now.astimezone(timezone.utc)
+            age = now_utc - observed_utc
+            if age < timedelta(0):
+                freshness = ActivityFreshness.UNKNOWN
+            elif age <= max_age:
+                freshness = ActivityFreshness.FRESH
+            else:
+                freshness = ActivityFreshness.STALE
+        except (OverflowError, TypeError, ValueError):
+            freshness = ActivityFreshness.UNKNOWN
+
+    return T3Activity(
+        freshness,
+        _activity_enum(binding, ActivityBinding),
+        _activity_enum(settlement, ActivitySettlement),
+    )
 
 
 @dataclass(frozen=True)

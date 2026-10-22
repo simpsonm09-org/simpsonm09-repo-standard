@@ -11,7 +11,8 @@ import planner
 from planner import (
     ActivityBinding, ActivityFreshness, ActivitySettlement, BranchSnapshot,
     CleanupOwner, DeleteBranch, Policy, RemoveEligibleWorktree, Skip,
-    SkipReason, Snapshot, T3Activity, WorktreeBinding, plan_cleanup,
+    SkipReason, Snapshot, T3Activity, WorktreeBinding, evaluate_t3_activity,
+    plan_cleanup,
 )
 
 NOW = datetime(2026, 10, 17, 12, tzinfo=timezone.utc)
@@ -318,6 +319,92 @@ class PlannerTests(unittest.TestCase):
     def test_empty_root_rejects_everything(self):
         snapshot = replace(SNAPSHOT, allowed_worktree_root="")
         self.assertEqual(one(snapshot, policy()), Skip("feature", SkipReason.UNSAFE_PATH))
+
+
+class T3ActivityEvidenceTests(unittest.TestCase):
+    max_age = timedelta(minutes=5)
+
+    def evaluate(self, observed_at, *, now=NOW, binding="unbound", settlement="settled",
+                 max_age=max_age):
+        return evaluate_t3_activity(observed_at, now, max_age, binding, settlement)
+
+    def test_missing_malformed_naive_and_invalid_time_bounds_are_unknown(self):
+        for observed_at, now, max_age in (
+            (None, NOW, self.max_age),
+            ("not a timestamp", NOW, self.max_age),
+            (datetime(2026, 10, 17, 11, 55), NOW, self.max_age),
+            (NOW, NAIVE, self.max_age),
+            (NOW, NOW, timedelta(seconds=-1)),
+            (NOW, NOW, "five minutes"),
+        ):
+            with self.subTest(observed_at=observed_at, now=now, max_age=max_age):
+                result = evaluate_t3_activity(observed_at, now, max_age, "unbound", "settled")
+                self.assertEqual(result.freshness, ActivityFreshness.UNKNOWN)
+
+    def test_future_timestamp_is_unknown(self):
+        result = self.evaluate(NOW + timedelta(microseconds=1))
+        self.assertEqual(result.freshness, ActivityFreshness.UNKNOWN)
+
+    def test_timezone_offsets_compare_as_instants_and_fresh_boundary_is_inclusive(self):
+        observed = datetime.fromisoformat("2026-10-17T07:55:00-04:00")
+        self.assertEqual(
+            self.evaluate(observed).freshness,
+            ActivityFreshness.FRESH,
+        )
+        self.assertEqual(
+            self.evaluate("2026-10-17T12:00:00Z", now=NOW).freshness,
+            ActivityFreshness.FRESH,
+        )
+        self.assertEqual(
+            self.evaluate("2026-10-17t12:00:00z", now=NOW).freshness,
+            ActivityFreshness.FRESH,
+        )
+
+    def test_expiration_boundary_is_stale_only_after_max_age(self):
+        boundary = NOW - self.max_age
+        self.assertEqual(self.evaluate(boundary).freshness, ActivityFreshness.FRESH)
+        self.assertEqual(
+            self.evaluate(boundary - timedelta(microseconds=1)).freshness,
+            ActivityFreshness.STALE,
+        )
+
+    def test_unknown_binding_and_settlement_values_remain_unknown(self):
+        unknown_binding = self.evaluate(NOW, binding="not-a-binding")
+        unknown_settlement = self.evaluate(NOW, settlement=None)
+        self.assertEqual(unknown_binding.binding, ActivityBinding.UNKNOWN)
+        self.assertEqual(unknown_settlement.settlement, ActivitySettlement.UNKNOWN)
+        self.assertEqual(
+            one(on_branch(replace(BRANCH, activity=unknown_binding)), policy()),
+            Skip("feature", SkipReason.ACTIVITY_UNKNOWN),
+        )
+        self.assertEqual(
+            one(on_branch(replace(BRANCH, activity=unknown_settlement)), policy()),
+            Skip("feature", SkipReason.ACTIVITY_UNKNOWN),
+        )
+
+    def test_bound_and_running_evidence_remain_holds(self):
+        for evidence in (
+            self.evaluate(NOW, binding="bound"),
+            self.evaluate(NOW, settlement="running"),
+        ):
+            with self.subTest(evidence=evidence):
+                self.assertEqual(
+                    one(on_branch(replace(BRANCH, activity=evidence)), policy()),
+                    Skip("feature", SkipReason.ACTIVITY_BOUND),
+                )
+
+    def test_timestamp_evaluator_flows_through_existing_ownership_holds(self):
+        activity = self.evaluate(NOW)
+        branch = replace(BRANCH, activity=activity)
+        snapshot = on_branch(branch)
+        self.assertEqual(
+            one(snapshot, policy(owner=CleanupOwner.T3)),
+            Skip("feature", SkipReason.T3_OWNS_WORKTREE),
+        )
+        self.assertEqual(
+            one(snapshot, policy(t3_disabled=False)),
+            Skip("feature", SkipReason.T3_CLEANUP_NOT_DISABLED),
+        )
 
     # --- structural guards ------------------------------------------------
 
