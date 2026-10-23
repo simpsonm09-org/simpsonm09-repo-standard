@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Update the CodeQL workflow template to match the CodeQL action pin used by the repository workflow.
 - Add a separate committed `owned-repositories.json` resolver policy for exact
   `simpsonm09` identities without fork upstreams. Its `propose` mapping allows
   only non-default branch pushes and same-repository pull requests. Missing or
