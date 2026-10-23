@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Make unmodeled `gh` commands require `admin` in the public command classifier,
+  while retaining known read commands and existing write-capability mappings.
+  Help/version controls count only as final tokens; `gh auth` commands,
+  including token-bearing status, and `gh repo sync` require `admin`.
 - Update the CodeQL workflow template to match the CodeQL action pin used by the repository workflow.
 - Add a separate committed `owned-repositories.json` resolver policy for exact
   `simpsonm09` identities without fork upstreams. Its `propose` mapping allows
