@@ -13,7 +13,7 @@
 // Exits 0 when every assertion holds and 1 on the first failure.
 
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -25,6 +25,7 @@ import { COVERAGE_CONTEXT, expectedChecks, kindOf, requiredGaps, rulesetGaps, un
 
 const CHECK_REPO = fileURLToPath(new URL('./check-repo.mjs', import.meta.url));
 const EXCEPTIONS = fileURLToPath(new URL('../docs/exceptions.json', import.meta.url));
+const STANDARD_ROOT = fileURLToPath(new URL('..', import.meta.url));
 const PIN = 'a'.repeat(40);
 const UNCOVERED_REPO = 'simpsonm09-org/simpsonm09-repo-catalog';
 const COVERED_REPO = 'simpsonm09-org/simpsonm09-fixture-go';
@@ -164,6 +165,30 @@ function testTreeCoverageJob(assert) {
   assert(gapIds(wrong).includes('ci/coverage'), 'a coverage job that calls another workflow is a ci/coverage gap');
 }
 
+function testStarterCoverageContract(assert) {
+  const callerCi = readFileSync(join(STANDARD_ROOT, 'templates/caller-ci.yml'), 'utf8');
+  const justfile = readFileSync(join(STANDARD_ROOT, 'templates/justfile'), 'utf8');
+  const mise = readFileSync(join(STANDARD_ROOT, 'templates/mise.toml'), 'utf8');
+  assert(/^\[tasks\.coverage\]$/m.test(mise), 'the mise starter declares a coverage task');
+  assert(mise.includes('coverage/lcov.info'), 'the mise starter requests the required LCOV output path');
+  const coverageRoot = fixture({
+    '.github/workflows/ci.yml': callerCi,
+    justfile,
+    'mise.toml': mise,
+  });
+  const coverageGaps = checkStandard(coverageRoot).gaps.map((gap) => gap.id);
+  rmSync(coverageRoot, { recursive: true, force: true });
+  assert(!coverageGaps.includes('ci/coverage-recipe'),
+    'the checked-in caller CI and task-runner starters include the required coverage recipe');
+
+  const uncoveredCi = callerCi.replace(/^  coverage:\n(?:    .*\n)+/m, '');
+  const uncoveredRoot = fixture({ '.github/workflows/ci.yml': uncoveredCi, justfile });
+  const uncoveredGaps = checkStandard(uncoveredRoot).gaps.map((gap) => gap.id);
+  rmSync(uncoveredRoot, { recursive: true, force: true });
+  assert(uncoveredGaps.includes('ci/coverage'),
+    'without a central exception, an opted-out starter has an open ci/coverage gap');
+}
+
 function testTreeSharedJobs(assert) {
   const noStandard = repoWith(ciText({ omit: ['standard'] }));
   assert(gapIds(noStandard).includes('ci/standard'), 'a missing standard job is a ci/standard gap, because standard / standard is required');
@@ -219,8 +244,8 @@ function testUncoveredCli(assert) {
   const plain = repoWith(ciText());
   const plainResult = runCheckRepo(plain, UNCOVERED_REPO);
   rmSync(plain, { recursive: true, force: true });
-  assert(plainResult.stdout.includes('  ci/coverage (2026-10-12)'), 'an uncovered repository lists ci/coverage as excepted');
-  assert(!plainResult.stdout.includes('gap ci/coverage:'), 'an uncovered repository with no coverage job has no open ci/coverage gap');
+  assert(plainResult.stdout.includes('  ci/coverage (2026-10-12)'), 'a central exception lists ci/coverage as excepted');
+  assert(!plainResult.stdout.includes('gap ci/coverage:'), 'a central ci/coverage exception clears the missing-job gap');
 
   const calls = repoWith(ciText({ coverage: sharedUses('coverage') }), COVERED_JUST);
   const callsResult = runCheckRepo(calls, UNCOVERED_REPO);
@@ -253,6 +278,7 @@ export function runTest() {
     testLiveNoJobForBaseCheck(assert);
     testRulesetGaps(assert);
     testTreeCoverageJob(assert);
+    testStarterCoverageContract(assert);
     testTreeSharedJobs(assert);
     testExtraTestJob(assert);
     testJobsCallingCoverage(assert);
