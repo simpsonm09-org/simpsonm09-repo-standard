@@ -21,7 +21,7 @@ import { checkStandard } from './check-standard.mjs';
 import { jobsCalling, parseJobs } from './lib/ci.mjs';
 import { loadExceptions } from './lib/exceptions.mjs';
 import { isMain } from './lib/proc.mjs';
-import { COVERAGE_CONTEXT, expectedChecks, kindOf, requiredGaps, rulesetGaps, uncoveredCallGaps } from './lib/required.mjs';
+import { COVERAGE_CONTEXT, expectedChecks, kindOf, protectMainSelection, requiredGaps, rulesetGaps, uncoveredCallGaps } from './lib/required.mjs';
 
 const CHECK_REPO = fileURLToPath(new URL('./check-repo.mjs', import.meta.url));
 const EXCEPTIONS = fileURLToPath(new URL('../docs/exceptions.json', import.meta.url));
@@ -212,16 +212,61 @@ function testJobsCallingCoverage(assert) {
 
 function testRulesetGaps(assert) {
   const live = (contexts) => ({
+    target: 'branch',
+    enforcement: 'active',
+    conditions: { ref_name: { include: ['refs/heads/main'], exclude: [] } },
     rules: [{ type: 'required_status_checks', parameters: { required_status_checks: contexts.map((context) => ({ context })) } }],
   });
   const coveredJobs = jobsOf(COVERED_JOBS);
   assert(rulesetGaps(live(expectedChecks('covered')), { kind: 'covered', jobs: coveredJobs }).length === 0,
     'a live ruleset matching the covered kind is clean');
-  const gaps = rulesetGaps({ rules: [] }, { kind: 'covered', jobs: coveredJobs });
+  const gaps = rulesetGaps({ ...live([]), rules: [] }, { kind: 'covered', jobs: coveredJobs });
   assert(gaps.length === expectedChecks('covered').length && gaps.every((gap) => gap.id === 'ruleset/required-missing'),
     'a ruleset with no required checks is missing every expected check');
   const extra = rulesetGaps(live([...expectedChecks('covered'), 'test-node']), { kind: 'covered', jobs: jobsOf(COVERED_JOBS) });
   assert(extra.length === 1 && extra[0].id === 'ruleset/required-no-job', 'a required test-node with no job is a no-job gap');
+
+  const good = live(expectedChecks('covered'));
+  for (const enforcement of ['disabled', 'evaluate']) {
+    const gaps = rulesetGaps({ ...good, enforcement }, { kind: 'covered', jobs: coveredJobs });
+    assert(gaps.some((gap) => gap.id === 'ruleset/enforcement'), `${enforcement} enforcement is not active protection`);
+  }
+  for (const conditions of [undefined, { ref_name: { include: ['refs/heads/release'], exclude: [] } }]) {
+    const gaps = rulesetGaps({ ...good, conditions }, { kind: 'covered', jobs: coveredJobs });
+    assert(gaps.some((gap) => gap.id === 'ruleset/main-target'), 'missing or wrong ref target is not main protection');
+  }
+  const excluded = rulesetGaps({ ...good, conditions: { ref_name: { include: ['~ALL'], exclude: ['refs/heads/main'] } } }, { kind: 'covered', jobs: coveredJobs });
+  assert(excluded.some((gap) => gap.id === 'ruleset/main-target'), 'an exclusion overrides a matching inclusion');
+
+  for (const include of [['~ALL'], ['~DEFAULT_BRANCH'], ['refs/heads/ma*'], ['refs/heads/main']]) {
+    const gaps = rulesetGaps({ ...good, conditions: { ref_name: { include, exclude: [] } } }, { kind: 'covered', jobs: coveredJobs });
+    assert(!gaps.some((gap) => gap.id === 'ruleset/main-target'), `${include[0]} includes main`);
+  }
+  const branchStar = rulesetGaps({ ...good, conditions: { ref_name: { include: ['refs/heads/*'], exclude: [] } } }, { kind: 'covered', jobs: coveredJobs });
+  assert(!branchStar.some((gap) => gap.id === 'ruleset/main-target'), 'a single-star pattern includes main');
+  const malformedRange = rulesetGaps({ ...good, conditions: { ref_name: { include: ['refs/heads/[z-a]'], exclude: [] } } }, { kind: 'covered', jobs: coveredJobs });
+  assert(malformedRange.some((gap) => gap.id === 'ruleset/main-target'), 'a malformed character range produces a target gap instead of throwing');
+  const zeroDirectoryGlobstar = rulesetGaps({ ...good, conditions: { ref_name: { include: ['refs/heads/**/main'], exclude: [] } } }, { kind: 'covered', jobs: coveredJobs });
+  assert(zeroDirectoryGlobstar.some((gap) => gap.id === 'ruleset/main-target'), 'unmodeled zero-directory globstar produces a target gap');
+  const unknownPattern = rulesetGaps({ ...good, conditions: { ref_name: { include: ['refs/heads/[!m]ain'], exclude: [] } } }, { kind: 'covered', jobs: coveredJobs });
+  assert(unknownPattern.some((gap) => gap.id === 'ruleset/main-target'), 'unsupported pattern syntax cannot prove main coverage');
+  const braceInclude = rulesetGaps({ ...good, conditions: { ref_name: { include: ['refs/heads/{main,dev}'], exclude: [] } } }, { kind: 'covered', jobs: coveredJobs });
+  assert(braceInclude.some((gap) => gap.id === 'ruleset/main-target'), 'unsupported brace syntax cannot prove main coverage');
+  const braceExclude = rulesetGaps({ ...good, conditions: { ref_name: { include: ['~ALL'], exclude: ['refs/heads/{main,dev}'] } } }, { kind: 'covered', jobs: coveredJobs });
+  assert(braceExclude.some((gap) => gap.id === 'ruleset/main-target'), 'unsupported brace syntax cannot hide a possible main exclusion');
+
+  const generated = JSON.parse(readFileSync(join(STANDARD_ROOT, 'rulesets/protect-main.json'), 'utf8'));
+  const generatedGaps = rulesetGaps(generated, { kind: 'covered', jobs: coveredJobs });
+  assert(!generatedGaps.some((gap) => gap.id === 'ruleset/enforcement' || gap.id === 'ruleset/main-target'),
+    'the committed protect-main payload remains a valid active main ruleset');
+}
+
+function testProtectMainSelection(assert) {
+  assert(protectMainSelection(1).ok, 'exactly one named ruleset can be selected');
+  const missing = protectMainSelection(0);
+  assert(!missing.ok && missing.id === 'ruleset/protect-main', 'a missing ruleset remains a missing-ruleset gap');
+  const duplicate = protectMainSelection(2);
+  assert(!duplicate.ok && duplicate.id === 'ruleset/ambiguous', 'duplicate names fail closed as ambiguity');
 }
 
 // Every coverage exception is a declaration, so it must name the reason. The two
@@ -277,6 +322,7 @@ export function runTest() {
     testLiveExtraTestJob(assert);
     testLiveNoJobForBaseCheck(assert);
     testRulesetGaps(assert);
+    testProtectMainSelection(assert);
     testTreeCoverageJob(assert);
     testStarterCoverageContract(assert);
     testTreeSharedJobs(assert);
