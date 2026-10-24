@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Update the five starter CI reusable workflow pins to the reviewed published standard commit `6f754925`.
 - Add a default coverage recipe and Python LCOV scaffold to the starter templates, and clarify that coverage opt-outs require a reviewed exception in the standard.
 - Make unmodeled `gh` commands require `admin` in the public command classifier,
   while retaining known read commands and existing write-capability mappings.
