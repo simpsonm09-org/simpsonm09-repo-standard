@@ -21,7 +21,7 @@ import { checkStandard } from './check-standard.mjs';
 import { jobsCalling, parseJobs } from './lib/ci.mjs';
 import { loadExceptions } from './lib/exceptions.mjs';
 import { isMain } from './lib/proc.mjs';
-import { COVERAGE_CONTEXT, expectedChecks, kindOf, protectMainSelection, requiredGaps, rulesetGaps, uncoveredCallGaps } from './lib/required.mjs';
+import { ALL_CHECKS_REQUIRED, COVERAGE_CONTEXT, expectedChecks, kindOf, protectMainSelection, requiredGaps, rulesetGaps, uncoveredCallGaps } from './lib/required.mjs';
 
 const CHECK_REPO = fileURLToPath(new URL('./check-repo.mjs', import.meta.url));
 const EXCEPTIONS = fileURLToPath(new URL('../docs/exceptions.json', import.meta.url));
@@ -100,6 +100,8 @@ function testKindOf(assert) {
 }
 
 function testExpectedChecks(assert) {
+  assert(!ALL_CHECKS_REQUIRED, 'all-checks stays outside required ruleset contexts until consumers are ready');
+  assert(!expectedChecks('covered').includes('all-checks') && !expectedChecks('uncovered').includes('all-checks'), 'staged rollout does not break consumers before they report all-checks');
   assert(expectedChecks('covered').includes(COVERAGE_CONTEXT), 'a covered repository expects coverage / coverage');
   assert(!expectedChecks('uncovered').includes(COVERAGE_CONTEXT), 'an uncovered repository does not expect coverage / coverage');
   for (const kind of ['covered', 'uncovered']) {
@@ -215,18 +217,26 @@ function testRulesetGaps(assert) {
     target: 'branch',
     enforcement: 'active',
     conditions: { ref_name: { include: ['refs/heads/main'], exclude: [] } },
-    rules: [{ type: 'required_status_checks', parameters: { required_status_checks: contexts.map((context) => ({ context })) } }],
+    rules: [{ type: 'required_status_checks', parameters: {
+      strict_required_status_checks_policy: true,
+      required_status_checks: contexts.map((context) => ({ context })),
+    } }],
   });
   const coveredJobs = jobsOf(COVERED_JOBS);
   assert(rulesetGaps(live(expectedChecks('covered')), { kind: 'covered', jobs: coveredJobs }).length === 0,
     'a live ruleset matching the covered kind is clean');
   const gaps = rulesetGaps({ ...live([]), rules: [] }, { kind: 'covered', jobs: coveredJobs });
-  assert(gaps.length === expectedChecks('covered').length && gaps.every((gap) => gap.id === 'ruleset/required-missing'),
-    'a ruleset with no required checks is missing every expected check');
+  assert(gaps.filter((gap) => gap.id === 'ruleset/required-missing').length === expectedChecks('covered').length
+    && gaps.some((gap) => gap.id === 'ruleset/required-strict'),
+  'a ruleset with no required checks is missing every expected check and strict enforcement');
   const extra = rulesetGaps(live([...expectedChecks('covered'), 'test-node']), { kind: 'covered', jobs: jobsOf(COVERED_JOBS) });
   assert(extra.length === 1 && extra[0].id === 'ruleset/required-no-job', 'a required test-node with no job is a no-job gap');
 
   const good = live(expectedChecks('covered'));
+  const nonStrict = rulesetGaps({ ...good, rules: [{ ...good.rules[0], parameters: {
+    ...good.rules[0].parameters, strict_required_status_checks_policy: false,
+  } }] }, { kind: 'covered', jobs: coveredJobs });
+  assert(nonStrict.some((gap) => gap.id === 'ruleset/required-strict'), 'branches must be required to be up to date');
   for (const enforcement of ['disabled', 'evaluate']) {
     const gaps = rulesetGaps({ ...good, enforcement }, { kind: 'covered', jobs: coveredJobs });
     assert(gaps.some((gap) => gap.id === 'ruleset/enforcement'), `${enforcement} enforcement is not active protection`);

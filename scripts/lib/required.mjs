@@ -6,6 +6,10 @@ import { findException } from './exceptions.mjs';
 
 export const COVERAGE_CONTEXT = 'coverage / coverage';
 
+// Roll this on only after every consuming repository reports the aggregate.
+// The CI contract is checked from day one; ruleset expectations remain gated.
+export const ALL_CHECKS_REQUIRED = false;
+
 // Every repository reports these, so every repository requires them.
 export const BASE_CONTEXTS = Object.freeze([
   'lint / flint',
@@ -29,7 +33,8 @@ export function kindOf(exceptions, repo) {
 }
 
 export function expectedChecks(kind) {
-  return kind === 'covered' ? [...BASE_CONTEXTS, COVERAGE_CONTEXT] : [...BASE_CONTEXTS];
+  const checks = kind === 'covered' ? [...BASE_CONTEXTS, COVERAGE_CONTEXT] : [...BASE_CONTEXTS];
+  return ALL_CHECKS_REQUIRED ? [...checks, 'all-checks'] : checks;
 }
 
 // The job that reports a required check. "lint / flint" is reported by the caller
@@ -136,8 +141,15 @@ export function rulesetGaps(ruleset, { kind, jobs, defaultBranch = 'main' }) {
     const reason = target === 'unknown' ? 'cannot verify its branch conditions' : 'does not target main';
     gaps.push({ id: 'ruleset/main-target', message: `protect-main ${reason}` });
   }
-  const rule = (ruleset.rules ?? []).find((entry) => entry.type === 'required_status_checks');
-  const live = (rule?.parameters?.required_status_checks ?? []).map((entry) => entry.context);
+  const rules = ruleset.rules;
+  if (!Array.isArray(rules)) gaps.push({ id: 'ruleset/rules', message: 'protect-main rules are unreadable' });
+  const rule = (Array.isArray(rules) ? rules : []).find((entry) => entry?.type === 'required_status_checks');
+  const required = rule?.parameters?.required_status_checks;
+  if (rule && !Array.isArray(required)) gaps.push({ id: 'ruleset/required-checks', message: 'protect-main required status checks are unreadable' });
+  if (rule?.parameters?.strict_required_status_checks_policy !== true) {
+    gaps.push({ id: 'ruleset/required-strict', message: 'protect-main does not require branches to be up to date' });
+  }
+  const live = (Array.isArray(required) ? required : []).map((entry) => entry?.context).filter((context) => typeof context === 'string');
   return [...gaps, ...requiredGaps({ kind, live, jobs })];
 }
 
