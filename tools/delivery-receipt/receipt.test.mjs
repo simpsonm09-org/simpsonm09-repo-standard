@@ -2,7 +2,7 @@
 // Focused read-only receipt contract and CLI fixtures; no proposed command is executed.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -158,6 +158,28 @@ function testLargeBlobRead() {
   }
 }
 
+function testFileMetadataFailures() {
+  const inaccessiblePath = resolve(ROOT, 'docs/definition-of-done.md');
+  const missingPath = '__delivery-receipt-metadata-control-missing__.md';
+  const statFile = (path) => {
+    if (path === inaccessiblePath) {
+      const error = new Error('fixture path and operating-system detail must not escape');
+      error.code = 'EACCES';
+      throw error;
+    }
+    return statSync(path);
+  };
+  const input = { proposedSourcePaths: [inaccessiblePath, missingPath] };
+  const collected = collectReceiptSnapshot(input, ROOT, { statFile, generatedAt: '2026-10-25T00:00:00.000Z' });
+  const receipt = buildDeliveryReceipt(makeInput(input), collected);
+  check(collected.sourceFiles[0].status === 'unreadable', 'metadata read failures remain explicitly unreadable');
+  check(collected.sourceFiles[0].reason === 'file-metadata-read-failed', 'metadata failure exposes its fixed reason');
+  check(!JSON.stringify(collected.sourceFiles[0]).includes('fixture path'), 'metadata failure omits raw errors and paths');
+  check(receipt.sourceFiles[0].reason === 'file-metadata-read-failed' && !JSON.stringify(receipt.sourceFiles[0]).includes(inaccessiblePath), 'receipt preserves the fixed reason and hashes the requested path');
+  check(receipt.evidenceStatus !== 'consistent', 'unreadable source evidence cannot produce a consistent receipt');
+  check(collected.sourceFiles[1].status === 'missing' && collected.sourceFiles[1].reason === undefined, 'ENOENT remains a legitimate missing-file result');
+}
+
 function testCollectorAndCli() {
   const outsidePath = resolve(ROOT, '../../__delivery-receipt-outside-fixture__.txt');
   const input = makeInput({
@@ -262,6 +284,7 @@ function testCollectorAndCli() {
 export function runTest() {
   testPureEvaluation();
   testLargeBlobRead();
+  testFileMetadataFailures();
   testCollectorAndCli();
   process.stdout.write('delivery-receipt: focused fixtures passed\n');
   return 0;
