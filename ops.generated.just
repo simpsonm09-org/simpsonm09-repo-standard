@@ -35,6 +35,10 @@ test:
 test-agent-token:
     {{op}} run test-agent-token
 
+# Build a read-only delivery preflight receipt from explicit JSON evidence.
+delivery-receipt *args:
+    {{op}} run delivery-receipt {{args}}
+
 # Run the suite with coverage and write coverage/lcov.info.
 coverage:
     {{op}} run coverage

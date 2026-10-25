@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add a reusable read-only delivery preflight receipt. The bounded CLI records explicit repository and source evidence, keeps command and host input hash-only, checks scoped caller-supplied release evidence, and reports consistency separately from authorization. It never executes the typed command or reads authentication state.
 - Add committed `upstream/main:ignore.json` destination denies and validate full
   case-insensitive identities. Preserve broad `full` push/admin capabilities,
   resolve invalid or missing policy levels to the internal read-only baseline,
