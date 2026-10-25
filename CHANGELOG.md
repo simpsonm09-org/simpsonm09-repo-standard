@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+- Add committed `upstream/main:ignore.json` destination denies and validate full
+  case-insensitive identities. Preserve broad `full` push/admin capabilities,
+  resolve invalid or missing policy levels to the internal read-only baseline,
+  check organization push and paired-fork PR operands, classify ordinary PR
+  management and issue creation at `openPr`, and keep milestone operations at
+  `admin`. For one supported simple command, return a never-granted `forbidden`
+  capability for approval/dismissal, admin-merge flags, canonical REST
+  review-route writes, and recognized GraphQL review mutations, including at
+  `full`. Ambiguous API endpoint spellings, including noncanonical absolute
+  URLs and ambiguous endpoint-like tokens beginning with `/`, `.`, `%`, `repos/`,
+  or `repos%` that use `//`, backslashes, dot segments, or percent encoding are
+  conservatively forbidden without assuming GitHub normalization. Literal
+  executable basenames are matched case-insensitively with `.exe` removed;
+  unsupported first-word grouping, keyword prefixes, escapes, and expansions
+  are forbidden. Unsupported argument expansion, command substitution,
+  grouping, redirection, unquoted shell separators (including glued separators), globbing,
+  or escape syntax is forbidden on governed `gh` and `git push` commands.
+  Bash `%`, `^`, and `!` punctuation remains literal data in argument position.
+  The tokenizer supports one bounded command only; wrappers and nested commands
+  remain outside its scope. This is not universal shell enforcement or branch
+  protection.
+- Split main-branch approval policy into an always-present `approval-main` ruleset. Keep `protect-main` at zero required approvals with signed commits, pull requests, strict existing checks, and no bypass actors; use one human admin PR-only bypass for `propose`/`merge`, and no approval bypass for `full`. Unknown and legacy levels fail closed during application.
+- Make `allow_auto_merge` an explicit `apply-settings` option (`--allow-auto-merge on|off`), dry-run by default and unchanged when omitted.
+- Add an `all-checks` CI aggregate and a fail-closed checker for its pinned safe
+  shape and every job in `.github/workflows/ci.yml`, with progressive ruleset
+  readiness and default CODEOWNERS validation.
 - Validate active `protect-main` ruleset targeting when the API response is readable; ambiguous names and unmodeled target patterns produce gaps. API read failures remain notices and do not establish protection.
 - Update the five starter CI reusable workflow pins to the reviewed published standard commit `6f754925`.
 - Add a default coverage recipe and Python LCOV scaffold to the starter templates, and clarify that coverage opt-outs require a reviewed exception in the standard.
