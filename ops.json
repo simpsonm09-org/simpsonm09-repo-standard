@@ -62,6 +62,12 @@
       "description": "Run the agent-access enforcement tests over the fixture catalog and the pre-push hook."
     },
     {
+      "id": "test-all-checks",
+      "kind": "portable",
+      "run": "node scripts/all-checks.test.mjs",
+      "description": "Run the all-checks aggregate workflow policy tests over local fixtures."
+    },
+    {
       "id": "test-ruleset-policy",
       "kind": "portable",
       "run": "node scripts/ruleset-policy.test.mjs",

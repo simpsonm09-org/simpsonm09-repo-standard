@@ -43,6 +43,10 @@ coverage:
 test-agent-access:
     {{op}} run test-agent-access
 
+# Run the all-checks aggregate workflow policy tests over local fixtures.
+test-all-checks:
+    {{op}} run test-all-checks
+
 # Run local ruleset approval and explicit auto-merge setting tests.
 test-ruleset-policy:
     {{op}} run test-ruleset-policy
