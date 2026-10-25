@@ -50,6 +50,13 @@
       "description": "Run the offline agent-token scope tests."
     },
     {
+      "id": "delivery-receipt",
+      "kind": "portable",
+      "args": true,
+      "run": "node tools/delivery-receipt/cli.mjs",
+      "description": "Build a read-only delivery preflight receipt from explicit JSON evidence."
+    },
+    {
       "id": "coverage",
       "kind": "portable",
       "run": "npx --yes c8 --reporter=lcov --reports-dir=coverage node scripts/test.mjs",

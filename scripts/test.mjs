@@ -17,8 +17,9 @@ import { runTest as runRequired } from './required.test.mjs';
 import { runTest as runRulesetPolicy } from './ruleset-policy.test.mjs';
 import { runTest as runScripting } from './scripting.test.mjs';
 import { runTest as runSubprocess } from './subprocess.test.mjs';
+import { runTest as runDeliveryReceipt } from '../tools/delivery-receipt/receipt.test.mjs';
 
-const SUITES = [runAgentAccess, runAllChecks, runPatchCoverage, runProc, runRepoMaintenance, runRequired, runRulesetPolicy, runScripting, runEnv, runSubprocess];
+const SUITES = [runAgentAccess, runAllChecks, runPatchCoverage, runProc, runRepoMaintenance, runRequired, runRulesetPolicy, runScripting, runEnv, runSubprocess, runDeliveryReceipt];
 
 export function runTests() {
   let failed = false;
