@@ -70,7 +70,14 @@ A repository has one of two coverage states.
 
 Covered and uncovered repositories both require `lint / flint`, `aislop / aislop`, `security / trivy`, `security / secrets`, `standard / standard`, and `test`. A repository may add a second test job named `test-<suffix>` and require it once it is stable. See [testing.md](testing.md).
 
-The checker enforces the rule. Each gap prints its id.
+The checker enforces the rule. Each gap prints its id. GitHub omits [`bypass_actors`](https://docs.github.com/en/rest/repos/rules#get-a-repository-ruleset)
+from ruleset detail responses unless the requesting identity has write access to the
+ruleset. The standard CI token is read-only, so the default audit reports an explicit
+unverified notice when GitHub omits that field; it does not infer an empty list or
+claim bypass protection is verified. A readable invalid or nonempty `protect-main`
+bypass list remains a gap. Pass `--agent-level propose|merge|full` for the privileged
+policy audit; an omitted field then fails closed. `check-agent-access` also fails
+closed when either ruleset's bypass list is unreadable.
 
 - `ci/coverage` (`check-standard`): ci.yml has no `coverage` job. `check-standard` cannot read exceptions, so an uncovered repository shows this gap until `check-repo` applies its entry.
 - `ci/coverage-unrequired` (`check-repo`): an uncovered repository calls the coverage workflow.
@@ -78,14 +85,14 @@ The checker enforces the rule. Each gap prints its id.
 - `ruleset/approval-policy`: the explicit level is unsupported, could not be audited, or does not match the level-specific approval and bypass policy.
 - `ruleset/rules` and `ruleset/required-checks`: `protect-main` rules or its required status checks are unreadable.
 - `ruleset/enforcement` and `ruleset/main-target`: `protect-main` is not active or its conditions cannot be verified to cover `main`.
-- `ruleset/protect-rule`, `ruleset/protect-approval`, `ruleset/protect-signatures`, and `ruleset/protect-bypass`: hard protection lacks exactly one pull request rule, has a nonzero approval count, lacks exactly one signature rule, or has an unreadable/nonempty bypass list.
+- `ruleset/protect-rule`, `ruleset/protect-approval`, `ruleset/protect-signatures`, and `ruleset/protect-bypass`: hard protection lacks exactly one pull request rule, has a nonzero approval count, lacks exactly one signature rule, or has a readable invalid/nonempty bypass list. An omitted `bypass_actors` field is unverified in the default read-only audit and fails the explicit privileged audit.
 - `ruleset/approval-rule` and `ruleset/approval-target`: `approval-main` does not contain exactly one pull request rule or does not target exactly `main`.
 - `ruleset/required-strict`: `protect-main` does not require branches to be up to date.
 - `ruleset/required-missing`, `ruleset/required-no-job`, and `ruleset/required-unexpected`: the live `protect-main` requires a set other than the one the repository expects, or requires a check that no job reports.
 
 The apply scripts upsert every committed ruleset by name. They build both main ruleset payloads from the selected access level, add `coverage / coverage` for a covered repository, and remove it for an uncovered one. They do not delete rulesets. An unknown, legacy, `read`, or `none` level fails closed. The old catalog must not apply this payload until its compatible three-level rollout is ready. Do not promote an old value to `full` implicitly or use an unreviewed legacy fallback.
 
-`check-agent-access` compares the two unique, active rulesets targeting exactly `main`, including approval counts and bypass actors. `check-repo` always runs the hard `protect-main` audit, including required checks, enforcement, target, pull request rule, signatures, approval count, and bypass actors. Pass `--agent-level propose|merge|full` to add the level-specific approval and bypass comparison. Without that option, readable API state that cannot be compared at a level remains notice-only; API read failures also remain notices and do not change the no-level exit behavior. With an explicit level, unreadable API state is a `ruleset/approval-policy` gap; an unexcepted gap fails the audit. Exception metadata is reviewed independently.
+`check-agent-access` compares the two unique, active rulesets targeting exactly `main`, including approval counts and bypass actors, and fails closed when either bypass list is unreadable. `check-repo` always runs the hard `protect-main` audit, including required checks, enforcement, target, pull request rule, signatures, and approval count. A readable invalid or nonempty `protect-main` bypass list is a gap. GitHub may omit `bypass_actors` from a read-only response; the default CI audit reports this as unverified, never as an empty list or verified protection. Pass `--agent-level propose|merge|full` to add the level-specific approval and bypass comparison; omitted bypass fields then produce a `ruleset/approval-policy` gap. Without that option, approval counts and approval-main actors are not compared because no access level was selected. API read failures remain notices and do not change the no-level exit behavior. Exception metadata is reviewed independently.
 
 ## Code owners and reviewers
 

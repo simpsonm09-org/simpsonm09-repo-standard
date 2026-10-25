@@ -47,6 +47,10 @@ function testRulesets() {
   assert(compareMainRulesets('full', protect, null).some((item) => item.includes('approval-main is missing')), 'missing approval ruleset fails');
   assert(compare('example', 'merge', protect, approval).ok, 'checker accepts the expected merge rulesets');
   assert(!compare('example', 'full', protect, ruleset('approval-main', 1)).ok, 'checker rejects a full approval mismatch');
+  assert(!compare('example', 'merge', { ...protect, bypass_actors: undefined }, approval).ok,
+    'check-agent-access fails closed when protect-main bypass actors are unreadable');
+  assert(!compare('example', 'merge', protect, { ...approval, bypass_actors: undefined }).ok,
+    'check-agent-access fails closed when approval-main bypass actors are unreadable');
   assert(!findUniqueRuleset([{ name: 'approval-main' }, { name: 'approval-main' }], 'approval-main').ok, 'duplicate rulesets fail');
 
   const approvalBase = ruleset('approval-main', 1, admin);
@@ -256,16 +260,20 @@ if (endpoint === 'repos/simpsonm09-org/example') {
     }));
     process.exit(0);
   }
-  process.stdout.write(JSON.stringify({
+  const bypassActors = approval ? [{ actor_id: null, actor_type: 'OrganizationAdmin', bypass_mode: 'pull_request' }] : [];
+  if (scenario === 'nonempty-protect-bypass' && !approval) bypassActors.push({ actor_id: 9, actor_type: 'Integration', bypass_mode: 'always' });
+  const response = {
     name: approval ? 'approval-main' : 'protect-main', target: 'branch', enforcement: 'active',
     conditions: { ref_name: { include: ['refs/heads/main'], exclude: [] } },
-    bypass_actors: approval ? [{ actor_id: null, actor_type: 'OrganizationAdmin', bypass_mode: 'pull_request' }] : [],
+    ...(scenario !== (approval ? 'omit-approval-bypass' : 'omit-protect-bypass')
+      ? { bypass_actors: scenario === 'invalid-protect-bypass' && !approval ? null : bypassActors } : {}),
     rules: approval
       ? [{ type: 'pull_request', parameters: { required_approving_review_count: 1 } }]
       : [{ type: 'required_signatures' }, { type: 'pull_request', parameters: { required_approving_review_count: 0 } },
         { type: 'required_status_checks', parameters: { strict_required_status_checks_policy: true,
           required_status_checks: ['lint / flint', 'aislop / aislop', 'security / trivy', 'security / secrets', 'standard / standard', 'test', 'coverage / coverage'].map((context) => ({ context })) } }],
-  }));
+  };
+  process.stdout.write(JSON.stringify(response));
 } else fail('unexpected mock endpoint: ' + endpoint);
 `;
 }
@@ -337,6 +345,30 @@ function testNullApprovalRuleBothModes(bin, level) {
   }
 }
 
+function testBypassVisibilityBothModes(bin, level) {
+  for (const [scenario, name] of [
+    ['omit-protect-bypass', 'protect-main'],
+    ['omit-approval-bypass', 'approval-main'],
+  ]) {
+    const noLevel = runCheckRepoCli([], bin, scenario);
+    assert(noLevel.status === 0 && noLevel.stdout.includes(`cannot verify ${name} bypass actors: GitHub omitted bypass_actors`)
+      && noLevel.stdout.includes('UNVERIFIED')
+      && noLevel.stdout.includes('standard: ok (ruleset bypass visibility unverified)')
+      && !noLevel.stdout.includes('gap ruleset/protect-bypass')
+      && !noLevel.stdout.includes('gap ruleset/approval-policy'),
+    `omitted ${name} bypass_actors is explicitly unverified without a level; got exit ${noLevel.status}:\n${noLevel.stdout}${noLevel.stderr}`);
+    const explicit = runCheckRepoCli(level, bin, scenario);
+    assert(explicit.status === 1 && explicit.stdout.includes('gap ruleset/approval-policy:')
+      && explicit.stdout.includes(`${name} bypass actors are unreadable`),
+    `omitted ${name} bypass_actors fails closed with an explicit level`);
+  }
+  for (const scenario of ['invalid-protect-bypass', 'nonempty-protect-bypass']) {
+    const result = runCheckRepoCli([], bin, scenario);
+    assert(result.status === 1 && result.stdout.includes('gap ruleset/protect-bypass:'),
+      `readable ${scenario === 'invalid-protect-bypass' ? 'invalid' : 'nonempty'} protect-main bypass_actors remains a hard gap without a level`);
+  }
+}
+
 function testCheckRepoCliFailures() {
   const fixture = mkdtempSync(join(tmpdir(), 'check-repo-cli-'));
   try {
@@ -372,6 +404,7 @@ function testCheckRepoCliFailures() {
     const successWithoutLevel = runCheckRepoCli([], bin, 'success');
     assert(successWithoutLevel.stdout.includes('approval-main approval count and bypass actors were not compared')
       && !successWithoutLevel.stdout.includes('gap ruleset/approval-policy'), 'successful API read without a level remains notice only');
+    testBypassVisibilityBothModes(bin, level);
     const noLevelNoApi = runCheckRepoCli(['--no-api'], bin);
     assert(!noLevelNoApi.stdout.includes('gap ruleset/approval-policy'), 'no-level --no-api does not add a policy gap');
     const invalid = runCheckRepoCli(['--agent-level', 'bogus'], bin, 'success');

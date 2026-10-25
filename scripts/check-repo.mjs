@@ -149,6 +149,12 @@ function checkPublicRuleset(repo, add, notice, ci, agentLevel) {
     return;
   }
   checkLegacyApproval(approval, add);
+  if (protect && !Object.hasOwn(protect, 'bypass_actors')) {
+    notice('cannot verify protect-main bypass actors: GitHub omitted bypass_actors for this read-only API request');
+  }
+  if (approval && !Object.hasOwn(approval, 'bypass_actors')) {
+    notice('cannot verify approval-main bypass actors: GitHub omitted bypass_actors for this read-only API request');
+  }
   notice('approval-main approval count and bypass actors were not compared; pass --agent-level to enable level-specific policy checks');
 }
 
@@ -167,9 +173,14 @@ function checkLegacyProtect(protect, ci, add) {
     if (rules.filter((entry) => entry?.type === 'required_signatures').length !== 1) {
       add('ruleset/protect-signatures', 'protect-main must contain exactly one required_signatures rule');
     }
-    if (!Array.isArray(protect.bypass_actors) || protect.bypass_actors.length !== 0) {
-      add('ruleset/protect-bypass', 'protect-main must have a readable empty bypass actor list');
-    }
+    checkLegacyProtectBypass(protect, add);
+  }
+}
+
+function checkLegacyProtectBypass(protect, add) {
+  if (Object.hasOwn(protect, 'bypass_actors')
+    && (!Array.isArray(protect.bypass_actors) || protect.bypass_actors.length !== 0)) {
+    add('ruleset/protect-bypass', 'protect-main must have a readable empty bypass actor list');
   }
 }
 
@@ -193,9 +204,10 @@ function groupOf(id) {
   return slash === -1 ? id : id.slice(0, slash);
 }
 
-function statusFor(gaps, group) {
+function statusFor(gaps, group, unverified) {
   const count = gaps.filter((gap) => groupOf(gap.id) === group).length;
-  return count === 0 ? 'ok' : `GAP(${count})`;
+  if (count > 0) return `GAP(${count})`;
+  return unverified && group === 'ruleset' ? 'UNVERIFIED' : 'ok';
 }
 
 function main() {
@@ -262,8 +274,10 @@ function partitionGaps(gaps, repo, exceptions) {
 }
 
 function report(root, repo, open, excepted, notices) {
+  const bypassVisibilityUnverified = notices.some((message) => message.includes('cannot verify')
+    && message.includes('bypass actors'));
   const header = ['repo'.padEnd(30), ...GROUPS.map((group) => group.padEnd(11))].join('');
-  const row = [(repo ?? root).padEnd(30), ...GROUPS.map((group) => statusFor(open, group).padEnd(11))].join('');
+  const row = [(repo ?? root).padEnd(30), ...GROUPS.map((group) => statusFor(open, group, bypassVisibilityUnverified).padEnd(11))].join('');
   process.stdout.write(`check-repo  ${root}\n`);
   process.stdout.write(`${header}\n${row}\n`);
   for (const gap of open) process.stdout.write(`  gap ${gap.id}: ${gap.message}\n`);
@@ -272,7 +286,9 @@ function report(root, repo, open, excepted, notices) {
     for (const entry of excepted) process.stdout.write(`  ${entry.gap.id} (${entry.match.date})\n`);
   }
   for (const message of notices) process.stdout.write(`notice: ${message}\n`);
-  process.stdout.write(`\nstandard: ${open.length === 0 ? 'ok' : 'failed'}\n`);
+  const state = open.length === 0 ? 'ok' : 'failed';
+  const visibility = bypassVisibilityUnverified ? ' (ruleset bypass visibility unverified)' : '';
+  process.stdout.write(`\nstandard: ${state}${visibility}\n`);
 }
 
 if (isMain(import.meta.url)) main();
