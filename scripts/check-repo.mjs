@@ -110,13 +110,14 @@ function readRulesetSummaries(repo, add, notice, agentLevel) {
   }
   const summaries = result.value.flat();
   const selected = {};
+  const context = { selected, add, notice, agentLevel };
   for (const name of ['protect-main', 'approval-main']) {
-    readOneRuleset(repo, summaries, name, selected, add, notice, agentLevel);
+    readOneRuleset(repo, summaries, name, context);
   }
   return selected;
 }
 
-function readOneRuleset(repo, summaries, name, selected, add, notice, agentLevel) {
+function readOneRuleset(repo, summaries, name, { selected, add, notice, agentLevel }) {
   const match = findUniqueRuleset(summaries, name);
   if (!match.ok) {
     add(name === 'protect-main' ? 'ruleset/protect-main' : 'ruleset/approval-main', match.reason);
