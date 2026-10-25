@@ -252,7 +252,11 @@ function testCollectorAndCli() {
   const wrongPort = buildDeliveryReceipt({ expectedRepository: 'git.example.net/group/nested/repository' }, remoteSnapshot);
   check(nestedRepo.repositoryMatch.status === 'match', 'remote identity retains the full nested path and port');
   check(wrongNestedRepo.repositoryMatch.status === 'mismatch' && wrongPort.repositoryMatch.status === 'mismatch', 'nested path and port differences fail repository matching');
-  check(!JSON.stringify(nestedRepo).includes('https://git.example.net'), 'receipt omits raw remote URLs');
+  assert.deepEqual(nestedRepo.repository.remotes, [{
+    name: 'origin',
+    canonical: { present: true, sha256: hashText('git.example.net:8443/group/nested/repository') },
+    status: 'read',
+  }], 'receipt emits only the allowed hashed remote fields');
 }
 
 export function runTest() {
