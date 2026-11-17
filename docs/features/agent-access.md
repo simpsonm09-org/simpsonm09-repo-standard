@@ -404,9 +404,9 @@ adapter decides whether the command's directory is in scope.
 [`../../scripts/check-agent-access.mjs`](../../scripts/check-agent-access.mjs) reads
 the declared level per repository and compares both active main rulesets. It
 requires unique `protect-main` and `approval-main` rulesets targeting exactly
-`main`, zero approval and no bypass actors on `protect-main`, and the expected
-approval count on `approval-main`. `propose` and `merge` require one approval with
-an organization-admin PR-only bypass; `full` requires zero approvals and no bypass
+`main`, zero approval and no bypass actors on `protect-main`, and zero
+approvals on `approval-main`. `propose` and `merge` keep an
+organization-admin PR-only bypass on `approval-main`; `full` has no bypass
 actors. Any App actor, extra actor, missing ruleset, or unreadable count is drift.
 
 ```bash

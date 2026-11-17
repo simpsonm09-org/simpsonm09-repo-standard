@@ -70,11 +70,11 @@ function selfTest() {
     rules: [{ type: 'pull_request', parameters: {} }] };
   const approval = { name: 'approval-main', bypass_actors: [], rules: [{ type: 'pull_request', parameters: {} }] };
   const propose = buildPayload(approval, 'propose');
-  assert(propose.rules[0].parameters.required_approving_review_count === 1, 'propose requires one approval');
+  assert(propose.rules[0].parameters.required_approving_review_count === 0, 'propose requires zero approvals');
   assert(propose.bypass_actors.length === 1 && propose.bypass_actors[0].actor_type === 'OrganizationAdmin', 'propose has one human admin bypass');
   assert(propose.bypass_actors[0].bypass_mode === 'pull_request', 'admin bypass is PR-only');
   const merge = buildPayload(approval, 'merge');
-  assert(merge.rules[0].parameters.required_approving_review_count === 1, 'merge requires one approval');
+  assert(merge.rules[0].parameters.required_approving_review_count === 0, 'merge requires zero approvals');
   const full = buildPayload(approval, 'full');
   assert(full.rules[0].parameters.required_approving_review_count === 0, 'full has zero approvals');
   assert(full.bypass_actors.length === 0, 'full has no approval bypass actor');

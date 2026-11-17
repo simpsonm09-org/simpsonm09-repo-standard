@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Make the PR-required/zero-approval policy the standard. `approval-main` now carries zero required approvals at every access level; `propose` and `merge` keep the organization-admin `pull_request` bypass on that ruleset, and `full` keeps none. `protect-main` still requires a pull request, signed commits, strict required checks, and has no bypass actors.
+
 - Add a reusable read-only delivery preflight receipt. The bounded CLI records explicit repository and source evidence, keeps command and host input hash-only, checks scoped caller-supplied release evidence, and reports consistency separately from authorization. File metadata errors remain unreadable with a fixed reason, while only `ENOENT` means missing. It never executes the typed command or reads authentication state.
 - Add committed `upstream/main:ignore.json` destination denies and validate full
   case-insensitive identities. Preserve broad `full` push/admin capabilities,
