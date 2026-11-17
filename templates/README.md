@@ -2,8 +2,8 @@
 
 <One sentence: what it is and who uses it.>
 
-The original lives in `simpsonm09-org/<repo>`; work happens on the personal fork.
-See [`repo-standard`](https://github.com/simpsonm09-org/simpsonm09-repo-standard).
+The original lives in `simpsonm09-projects/<repo>`; work happens on the personal fork.
+See [`repo-standard`](https://github.com/simpsonm09-projects/simpsonm09-repo-standard).
 
 ## What it does
 
@@ -35,4 +35,4 @@ MIT. See [`LICENSE`](LICENSE).
 
 ## Related repositories
 
-- [`repo-standard`](https://github.com/simpsonm09-org/simpsonm09-repo-standard) owns the shared CI, linting, security, and governance.
+- [`repo-standard`](https://github.com/simpsonm09-projects/simpsonm09-repo-standard) owns the shared CI, linting, security, and governance.
