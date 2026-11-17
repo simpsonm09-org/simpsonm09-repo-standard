@@ -16,7 +16,7 @@ The trailing comment on each pinned line names what the line pins:
 uses: simpsonm09-projects/simpsonm09-repo-standard/.github/workflows/lint.yml@<sha> # repo-standard, pinned commit
 ```
 
-Run this workflow in the repository itself. It runs the caller on pushes to `main` and on pull requests. A mirror or a personal copy runs no Actions: GitHub cannot resolve the private reusable workflow from a copy, and the run would be redundant beside the repository's own run.
+Run this workflow in the repository itself. It runs the caller on pushes to `main` and on pull requests. A mirror or a personal copy runs none of these: the run would be redundant beside the repository's own.
 
 The shared jobs do not run tests. Add the repository's own `test` job next to them. See [`testing.md`](testing.md).
 
