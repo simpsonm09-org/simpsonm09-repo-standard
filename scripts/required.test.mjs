@@ -293,6 +293,16 @@ function testProtectMainSelection(assert) {
   assert(!duplicate.ok && duplicate.id === 'ruleset/ambiguous', 'duplicate names fail closed as ambiguity');
 }
 
+function testRenamedOrgExceptions(assert) {
+  const exceptions = loadExceptions(EXCEPTIONS);
+  assert(kindOf(exceptions, 'simpsonm09-projects/simpsonm09-repo-catalog') === 'uncovered',
+    'a coverage exception stays in force after the organization rename');
+  assert(kindOf(exceptions, 'simpsonm09-projects/simpsonm09-fixture-go') === 'covered',
+    'a repository without an exception stays covered after the rename');
+  assert(kindOf(exceptions, 'simpsonm09/simpsonm09-repo-catalog') === 'covered',
+    'a personal fork of the same name never inherits the exception');
+}
+
 // Every coverage exception is a declaration, so it must name the reason. The two
 // reasons are records (no executable code under test) and not measurable by the
 // shared workflow. Either reason text is free, but it cannot be empty.
@@ -353,6 +363,7 @@ export function runTest() {
     testExtraTestJob(assert);
     testJobsCallingCoverage(assert);
     testRenamedOrgCaller(assert);
+    testRenamedOrgExceptions(assert);
     testExceptionReasons(assert);
     testUncoveredCli(assert);
     testCoveredCli(assert);

@@ -599,9 +599,11 @@ function verdict(allowed, capability, reason) {
   return { allowed, capability, reason };
 }
 
-// The organization remote the push hook governs. A push to any other remote is
-// out of scope, so the gate leaves it to the hook's own scope rule.
-const ORG_REMOTE_MARKER = 'simpsonm09-org';
+// The organization remotes the push hook governs. A push to any other remote is
+// out of scope, so the gate leaves it to the hook's own scope rule. Both owner
+// spellings stay in scope so the gate keeps governing every push across the
+// organization rename.
+const ORG_REMOTE_MARKERS = ['simpsonm09-org', 'simpsonm09-projects'];
 
 // A shell command needs one capability. The patterns are ordered, first match
 // wins, so merge and PR-management checks run before the generic push.
@@ -817,7 +819,7 @@ function gitPushNeedsMain(parts) {
 function pushInScope(parts, remoteUrl) {
   if (!isGitPush(parts)) return true;
   if (!remoteUrl) return true;
-  return remoteUrl.includes(ORG_REMOTE_MARKER);
+  return ORG_REMOTE_MARKERS.some((marker) => remoteUrl.includes(marker));
 }
 
 // gh api mutates only when it names an explicit HTTP method. The method comes
@@ -1039,6 +1041,7 @@ export function selfTest() {
 
   const fork = 'https://github.com/simpsonm09/simpsonm09-repo-standard.git';
   const org = 'https://github.com/simpsonm09-org/simpsonm09-repo-standard.git';
+  const renamedOrg = 'https://github.com/simpsonm09-projects/simpsonm09-repo-standard.git';
 
   const table = [
     ['gh pr merge 1', 'mergePr'],
@@ -1168,19 +1171,21 @@ export function selfTest() {
     assert(decide(level, command).allowed === expected, `decide ${level} ${JSON.stringify(command)} -> ${expected}`);
   }
 
-  assertPushScope(assert, fork, org);
+  assertPushScope(assert, fork, org, renamedOrg);
   assertDestinationPolicy(assert);
 }
 
 // The push scope coverage: a known non-organization remote is out of scope and
 // needs no capability, the organization remote keeps the governed capability,
 // and an unknown URL stays governed. Split from selfTest so each stays short.
-function assertPushScope(assert, fork, org) {
+function assertPushScope(assert, fork, org, renamedOrg) {
   const scoped = [
     ['git push --dry-run origin main', fork, null],
     ['git push --dry-run origin main', org, 'pushMain'],
+    ['git push --dry-run origin main', renamedOrg, 'pushMain'],
     ['git push upstream feat/x', fork, null],
     ['git push upstream feat/x', org, 'pushBranch'],
+    ['git push upstream feat/x', renamedOrg, 'pushBranch'],
     ['git push origin main', fork, null],
     ['git push origin main', undefined, 'pushMain'],
     ['git push origin main', '', 'pushMain'],
@@ -1191,10 +1196,12 @@ function assertPushScope(assert, fork, org) {
 
   const decided = [
     ['propose', 'git push --dry-run origin main', org, false],
+    ['propose', 'git push --dry-run origin main', renamedOrg, false],
     ['propose', 'git push --dry-run origin main', fork, true],
     ['propose', 'git push upstream feat/x', org, true],
     ['merge', 'git push --dry-run origin main', org, false],
     ['full', 'git push --dry-run origin main', org, true],
+    ['full', 'git push --dry-run origin main', renamedOrg, true],
   ];
   for (const [level, command, remoteUrl, expected] of decided) {
     assert(decide(level, command, remoteUrl).allowed === expected, `decide ${level} ${JSON.stringify(command)} @ ${remoteUrl} -> ${expected}`);

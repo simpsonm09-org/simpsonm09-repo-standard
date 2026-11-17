@@ -21,6 +21,21 @@ export function loadExceptions(file) {
   });
 }
 
+// The organization rename moves every repository to the new owner without
+// changing its name. An exception declares a repository, not an owner spelling,
+// so it keeps applying under either organization owner while the rename is in
+// flight. Personal forks and third parties are never matched.
+const ORG_OWNERS = ['simpsonm09-org', 'simpsonm09-projects'];
+
+function sameRepository(candidate, repo) {
+  if (candidate === repo) return true;
+  const slash = repo.indexOf('/');
+  if (slash === -1) return false;
+  if (!ORG_OWNERS.includes(repo.slice(0, slash))) return false;
+  const name = repo.slice(slash + 1);
+  return ORG_OWNERS.some((owner) => candidate === `${owner}/${name}`);
+}
+
 export function findException(exceptions, repo, id) {
-  return exceptions.find((entry) => (entry.repo === '*' || entry.repo === repo) && (entry.checks.has('*') || entry.checks.has(id)));
+  return exceptions.find((entry) => (entry.repo === '*' || sameRepository(entry.repo, repo)) && (entry.checks.has('*') || entry.checks.has(id)));
 }
