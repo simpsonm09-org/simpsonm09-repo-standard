@@ -202,6 +202,20 @@ function testExtraTestJob(assert) {
   assert(!found.includes('ci/test') && !found.includes('ci/coverage'), 'a test-node job beside a plain test job adds no gap');
 }
 
+function testRenamedOrgCaller(assert) {
+  const renamed = (name) => `simpsonm09-projects/simpsonm09-repo-standard/.github/workflows/${name}.yml@${PIN}`;
+  const pinnedCi = ciText({ coverage: renamed('coverage') }).replaceAll('simpsonm09-org', 'simpsonm09-projects');
+  const pinned = repoWith(pinnedCi, COVERED_JUST);
+  const pinnedGaps = gapIds(pinned);
+  assert(!pinnedGaps.includes('ci/pin'), 'a caller pinned through the new organization owner is still a pinned reference');
+  assert(!pinnedGaps.includes('ci/coverage'), 'the coverage job is recognized through the new organization owner');
+
+  const unpinned = repoWith(ciText({ coverage: 'simpsonm09-projects/simpsonm09-repo-standard/.github/workflows/coverage.yml@main' }), COVERED_JUST);
+  assert(gapIds(unpinned).includes('ci/pin'), 'an unpinned reference through the new owner is still a ci/pin gap');
+
+  assert(jobsCalling(parseJobs(pinnedCi), 'coverage', false).join() === 'coverage', 'the coverage call is found through the new owner');
+}
+
 function testJobsCallingCoverage(assert) {
   const jobs = parseJobs(ciText({ coverage: sharedUses('coverage') }));
   assert(jobsCalling(jobs, 'coverage', false).join() === 'coverage', 'the coverage job is found through its pinned reference');
@@ -338,6 +352,7 @@ export function runTest() {
     testTreeSharedJobs(assert);
     testExtraTestJob(assert);
     testJobsCallingCoverage(assert);
+    testRenamedOrgCaller(assert);
     testExceptionReasons(assert);
     testUncoveredCli(assert);
     testCoveredCli(assert);

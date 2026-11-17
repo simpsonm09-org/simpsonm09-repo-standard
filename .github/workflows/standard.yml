@@ -8,7 +8,7 @@ permissions:
 
 jobs:
   standard:
-    if: github.repository_owner == 'simpsonm09-org'
+    if: github.repository_owner == 'simpsonm09-org' || github.repository_owner == 'simpsonm09-projects'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
@@ -34,16 +34,16 @@ jobs:
           test -n "$ref"
           echo "ref=$ref" >> "$GITHUB_OUTPUT"
       - name: Checkout the pinned standard
-        if: github.repository != 'simpsonm09-org/simpsonm09-repo-standard'
+        if: github.repository != 'simpsonm09-org/simpsonm09-repo-standard' && github.repository != 'simpsonm09-projects/simpsonm09-repo-standard'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          repository: simpsonm09-org/simpsonm09-repo-standard
+          repository: ${{ github.repository_owner }}/simpsonm09-repo-standard
           ref: ${{ steps.pin.outputs.ref }}
           path: .standard
           persist-credentials: false
       - name: Run the single-repository standard check
         run: |
-          if [ "${GITHUB_REPOSITORY}" = "simpsonm09-org/simpsonm09-repo-standard" ]; then
+          if [ "${GITHUB_REPOSITORY}" = "${GITHUB_REPOSITORY_OWNER}/simpsonm09-repo-standard" ]; then
             node scripts/check-repo.mjs . --repo "${GITHUB_REPOSITORY}"
           else
             node .standard/scripts/check-repo.mjs .
