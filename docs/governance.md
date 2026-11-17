@@ -12,6 +12,8 @@ This document defines the branch model and the protection rules for repositories
 
 A pull request against `main` runs the shared checks from the repository. The checks are lint, aislop, security, standard, and coverage.
 
+Every organization repository requires a pull request to reach `main`, requires zero approving reviews, and enforces signed commits plus the required status checks. No level weakens those three requirements.
+
 ### Where a pull request may go
 
 Open a pull request, issue, or comment only on a repository owned by `simpsonm09` or `simpsonm09-org`, the owners of the personal and organization plugins. Never open one automatically against any other owner, including the project a fork came from. A contribution to a repository we do not own needs the maintainer's review first. `gh pr create` targets a fork's parent by default, so pass `-R <owner>/<repo>` with an owned repository, and push only to `origin`.
@@ -40,12 +42,12 @@ Targets `refs/heads/main`.
 
 Targets exactly `refs/heads/main` and contains only the pull request review rule. It is always applied, including at `full`, so level changes update one named ruleset instead of leaving a stale review policy behind.
 
-- `propose` and `merge` require one human approval. The organization administrator role has a `pull_request` bypass on this ruleset only.
-- `full` requires zero approvals and has no bypass actors.
+- Every access level requires zero approvals. The pull request rule is what requires PR-based integration; the review count is zero so a solo maintainer is never blocked.
+- `propose` and `merge` keep the organization administrator `pull_request` bypass on this ruleset only. `full` has no bypass actors.
 - The bypass does not apply to `protect-main`; signed commits, pull requests, and its required checks continue to apply.
 - For repositories outside an organization, configure a supported repository-owner administrator actor explicitly. Do not copy an organization role actor into a personal repository without confirming GitHub supports it there.
 
-The owner decision for `full` is checks only. Full-level pull requests have no required human approval, including changes to CI, security, or permission controls.
+The owner decision at every level is checks only. Pull requests have no required human approval, including changes to CI, security, or permission controls; signed commits and the required checks are the gate.
 
 ### protect-tags
 
@@ -126,8 +128,8 @@ Rulesets on private repositories need GitHub Pro for a personal account and GitH
 
 | Level | `approval-main` approval count | `approval-main` bypass |
 | --- | ---: | --- |
-| `propose` | 1 | Organization admin, `pull_request` |
-| `merge` | 1 | Organization admin, `pull_request` |
+| `propose` | 0 | Organization admin, `pull_request` |
+| `merge` | 0 | Organization admin, `pull_request` |
 | `full` | 0 | None |
 
 The approval bypass is confined to `approval-main`; it cannot skip hard protection. No agent App actor appears in either main ruleset.

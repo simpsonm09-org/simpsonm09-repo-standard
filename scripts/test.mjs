@@ -27,6 +27,9 @@ export function runTests() {
     if (suite() !== EXIT.OK) failed = true;
   }
   if (run(process.execPath, ['scripts/op.mjs', 'run', 'test-agent-token']) !== EXIT.OK) failed = true;
+  for (const script of ['scripts/check-agent-access.mjs', 'scripts/ruleset-payload.mjs']) {
+    if (run(process.execPath, [script, '--self-test']) !== EXIT.OK) failed = true;
+  }
   return failed ? EXIT.FAIL : EXIT.OK;
 }
 

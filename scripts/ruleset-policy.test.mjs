@@ -30,13 +30,14 @@ function ruleset(name, count, actors = []) {
 function testRulesets() {
   const admin = [{ actor_id: null, actor_type: 'OrganizationAdmin', bypass_mode: 'pull_request' }];
   const protect = ruleset('protect-main', 0);
-  const approval = ruleset('approval-main', 1, admin);
+  const approval = ruleset('approval-main', 0, admin);
   assert(compareMainRulesets('propose', protect, approval).length === 0, 'propose policy passes');
   assert(compareMainRulesets('merge', protect, approval).length === 0, 'merge policy passes');
   assert(compareMainRulesets('full', protect, ruleset('approval-main', 0)).length === 0, 'full policy passes');
+  assert(compareMainRulesets('propose', protect, ruleset('approval-main', 1)).some((item) => item.includes('expected 0')), 'propose rejects a required approval');
   assert(compareMainRulesets('legacy', protect, ruleset('approval-main', 0)).length > 0, 'unknown level fails');
   assert(compareMainRulesets('full', { ...protect, bypass_actors: admin }, ruleset('approval-main', 0)).some((item) => item.includes('protect-main has bypass')), 'hard protection bypass fails');
-  assert(compareMainRulesets('merge', protect, ruleset('approval-main', 1, [{ actor_type: 'Integration', actor_id: 42, bypass_mode: 'always' }])).some((item) => item.includes('unexpected')), 'unexpected bypass actor fails');
+  assert(compareMainRulesets('merge', protect, ruleset('approval-main', 0, [{ actor_type: 'Integration', actor_id: 42, bypass_mode: 'always' }])).some((item) => item.includes('unexpected')), 'unexpected bypass actor fails');
   assert(compareMainRulesets('full', protect, ruleset('approval-main', 1)).some((item) => item.includes('expected 0')), 'wrong approval count fails');
   assert(compareMainRulesets('full', null, ruleset('approval-main', 0)).some((item) => item.includes('missing or unreadable')), 'missing ruleset fails');
   assert(compareMainRulesets('full', protect, { ...ruleset('approval-main', 0), enforcement: 'disabled' }).some((item) => item.includes('expected active')), 'inactive ruleset fails');
@@ -53,13 +54,13 @@ function testRulesets() {
     'check-agent-access fails closed when approval-main bypass actors are unreadable');
   assert(!findUniqueRuleset([{ name: 'approval-main' }, { name: 'approval-main' }], 'approval-main').ok, 'duplicate rulesets fail');
 
-  const approvalBase = ruleset('approval-main', 1, admin);
+  const approvalBase = ruleset('approval-main', 0, admin);
   const merge = buildPayload(approvalBase, 'merge');
   const full = buildPayload(merge, 'full');
   const backToMerge = buildPayload(full, 'merge');
   const fullAgain = buildPayload(backToMerge, 'full');
   assert(fullAgain.rules[0].parameters.required_approving_review_count === 0 && fullAgain.bypass_actors.length === 0, 'full to merge to full converges');
-  assert(backToMerge.rules[0].parameters.required_approving_review_count === 1 && backToMerge.bypass_actors.length === 1, 'merge transition restores only human PR bypass');
+  assert(backToMerge.rules[0].parameters.required_approving_review_count === 0 && backToMerge.bypass_actors.length === 1, 'merge transition restores only human PR bypass');
   assert(buildPayload({ ...protect, bypass_actors: admin }, 'full').bypass_actors.length === 0, 'protect payload strips all bypass actors');
 
   const committedProtect = JSON.parse(readFileSync(new URL('../rulesets/protect-main.json', import.meta.url), 'utf8'));
@@ -268,7 +269,7 @@ if (endpoint === 'repos/simpsonm09-org/example') {
     ...(scenario !== (approval ? 'omit-approval-bypass' : 'omit-protect-bypass')
       ? { bypass_actors: scenario === 'invalid-protect-bypass' && !approval ? null : bypassActors } : {}),
     rules: approval
-      ? [{ type: 'pull_request', parameters: { required_approving_review_count: 1 } }]
+      ? [{ type: 'pull_request', parameters: { required_approving_review_count: 0 } }]
       : [{ type: 'required_signatures' }, { type: 'pull_request', parameters: { required_approving_review_count: 0 } },
         { type: 'required_status_checks', parameters: { strict_required_status_checks_policy: true,
           required_status_checks: ['lint / flint', 'aislop / aislop', 'security / trivy', 'security / secrets', 'standard / standard', 'test', 'coverage / coverage'].map((context) => ({ context })) } }],

@@ -46,4 +46,4 @@ mirror and is out of scope, so nothing here reads or configures it.
 
 ## Rulesets and the plan
 
-[`../rulesets/`](../rulesets) holds `protect-main`, `approval-main`, and `protect-tags`, and the apply scripts upsert them by name. Rulesets on a private repository need GitHub Pro for a personal account or GitHub Team for an organization. On the free plan the apply script reports the rulesets it would apply and stops. A public repository can carry them, and `check-repo` reports missing or ambiguous main rulesets. Use `check-repo --agent-level propose|merge|full` to compare the level-specific approval count and bypass actors.
+[`../rulesets/`](../rulesets) holds `protect-main`, `approval-main`, and `protect-tags`, and the apply scripts upsert them by name. Rulesets on a private repository need GitHub Pro for a personal account or GitHub Team for an organization. On the free plan the apply script reports the rulesets it would apply and stops. A public repository can carry them, and `check-repo` reports missing or ambiguous main rulesets. Use `check-repo --agent-level propose|merge|full` to compare the level-specific bypass actors; every level requires zero approvals.

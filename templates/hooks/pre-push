@@ -36,9 +36,11 @@ if ! node "$guard" < "$refs"; then
 fi
 
 # Only the organization remote is governed. The personal fork is a private
-# mirror and out of scope, so fork alignment keeps working.
+# mirror and out of scope, so fork alignment keeps working. Both owner
+# spellings are governed while the organization rename is in flight.
 case "$url" in
   *github.com/simpsonm09-org/*|*github.com:simpsonm09-org/*) ;;
+  *github.com/simpsonm09-projects/*|*github.com:simpsonm09-projects/*) ;;
   *) rm -f "$refs"; exit 0 ;;
 esac
 

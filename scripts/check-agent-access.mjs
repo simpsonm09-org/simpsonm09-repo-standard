@@ -62,10 +62,11 @@ function selfTest() {
   const assert = (condition, message) => { if (!condition) throw new Error(message); };
   const admin = [{ actor_id: null, actor_type: 'OrganizationAdmin', bypass_mode: 'pull_request' }];
   assert(compare('x', 'full', sample('protect-main', 0), sample('approval-main', 0)).ok, 'full has zero approvals and no bypass');
-  assert(compare('x', 'merge', sample('protect-main', 0), sample('approval-main', 1, admin)).ok, 'merge has one approval and human PR-only bypass');
-  assert(compare('x', 'propose', sample('protect-main', 0), sample('approval-main', 1, admin)).ok, 'propose has one approval');
+  assert(compare('x', 'merge', sample('protect-main', 0), sample('approval-main', 0, admin)).ok, 'merge has zero approvals and human PR-only bypass');
+  assert(compare('x', 'propose', sample('protect-main', 0), sample('approval-main', 0, admin)).ok, 'propose has zero approvals');
+  assert(!compare('x', 'propose', sample('protect-main', 0), sample('approval-main', 1, admin)).ok, 'propose rejects a required approval');
   assert(!compare('x', 'full', sample('protect-main', 0, admin), sample('approval-main', 0)).ok, 'protect bypass fails');
-  assert(!compare('x', 'merge', sample('protect-main', 0), sample('approval-main', 1, [...admin, { actor_type: 'Integration', actor_id: 42, bypass_mode: 'always' }])).ok, 'unexpected actor fails');
+  assert(!compare('x', 'merge', sample('protect-main', 0), sample('approval-main', 0, [...admin, { actor_type: 'Integration', actor_id: 42, bypass_mode: 'always' }])).ok, 'unexpected actor fails');
   assert(!compare('x', 'full', sample('protect-main', 0), sample('approval-main', 1)).ok, 'wrong approval count fails');
   assert(!compare('x', 'legacy', sample('protect-main', 0), sample('approval-main', 0)).ok, 'unknown level fails');
   assert(!compare('x', 'full', null, sample('approval-main', 0)).ok, 'missing protection ruleset fails');

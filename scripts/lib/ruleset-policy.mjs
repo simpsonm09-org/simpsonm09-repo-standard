@@ -1,16 +1,22 @@
 export const SELECTABLE_LEVELS = Object.freeze(['propose', 'merge', 'full']);
 
+// Every access level requires zero reviews. A pull request is still required:
+// the approval-main pull_request rule below requires PR-based integration, and
+// protect-main requires one at every level with no bypass actors. Signed
+// commits and the required status checks are never affected by the level.
 export function approvalCountFor(level) {
-  if (level === 'propose' || level === 'merge') return 1;
-  if (level === 'full') return 0;
+  if (level === 'propose' || level === 'merge' || level === 'full') return 0;
   throw new Error(`unsupported agent access level: ${String(level)}`);
 }
 
+// The organization administrator may skip the approval-main pull_request rule
+// at propose and merge, matching the existing level contract. The bypass cannot
+// skip protect-main, so signatures, checks, and the PR requirement still apply.
 export function expectedApprovalBypass(level) {
-  const approvals = approvalCountFor(level);
-  return approvals === 1
-    ? [{ actor_id: null, actor_type: 'OrganizationAdmin', bypass_mode: 'pull_request' }]
-    : [];
+  approvalCountFor(level);
+  return level === 'full'
+    ? []
+    : [{ actor_id: null, actor_type: 'OrganizationAdmin', bypass_mode: 'pull_request' }];
 }
 
 export function compareMainRulesets(level, protectMain, approvalMain, branch = 'main') {
