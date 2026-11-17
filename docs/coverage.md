@@ -116,7 +116,7 @@ node scripts/cobertura-to-lcov.mjs
 ```
 
 The Go and C#/.NET converters are repository-owned, following the Kotlin converter in
-[`simpsonm09-repo-template/scripts/jacoco-to-lcov.mjs`](https://github.com/simpsonm09-org/simpsonm09-repo-template/blob/main/scripts/jacoco-to-lcov.mjs),
+[`simpsonm09-repo-template/scripts/jacoco-to-lcov.mjs`](https://github.com/simpsonm09-projects/simpsonm09-repo-template/blob/main/scripts/jacoco-to-lcov.mjs),
 which reads the JaCoCo report at its default `build/reports/jacoco/test/jacocoTestReport.xml`
 and writes `coverage/lcov.info`. The gate then runs unchanged.
 

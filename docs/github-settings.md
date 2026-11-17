@@ -15,7 +15,7 @@ The standard fixes a small set of repository settings. `scripts/apply-settings.m
 
 ## Topics
 
-Every repository carries at least one topic that names its owner. An organization repository under `simpsonm09-org` carries `simpsonm09-org`. `check-repo` reads the topics and reports `settings/topics` when the owner is absent.
+Every repository carries at least one topic that names its owner. A repository in the `simpsonm09-projects` organization carries `simpsonm09-projects`. `check-repo` reads the topics and reports `settings/topics` when the owner is absent.
 
 ## Security features
 
@@ -34,15 +34,15 @@ repository at once. See [automation.md](automation.md).
 [`../scripts/apply-settings.mjs`](../scripts/apply-settings.mjs) prints a dry run by default. Pass `--apply` to write. It is idempotent, so it only touches a setting that differs. `allow_auto_merge` is separate from the repository's agent level and is not inferred from a catalog that may not have landed. Supply `--allow-auto-merge on` or `--allow-auto-merge off` to request that setting; combine it with `--apply` only when it should be written. If the plan or permissions do not support it, the API error is reported.
 
 ```bash
-node scripts/apply-settings.mjs simpsonm09-org/simpsonm09-repo-standard
-node scripts/apply-settings.mjs simpsonm09-org/simpsonm09-repo-standard --apply
-node scripts/apply-settings.mjs simpsonm09-org/simpsonm09-repo-standard --allow-auto-merge on
+node scripts/apply-settings.mjs simpsonm09-projects/simpsonm09-repo-standard
+node scripts/apply-settings.mjs simpsonm09-projects/simpsonm09-repo-standard --apply
+node scripts/apply-settings.mjs simpsonm09-projects/simpsonm09-repo-standard --allow-auto-merge on
 ```
 
 Add `--topic NAME` to keep an extra topic alongside the owner login.
 
-The standard covers the organization repositories only. A personal fork is a private
-mirror and is out of scope, so nothing here reads or configures it.
+The standard covers the organization repositories only. A personal repository is out of
+scope, so nothing here reads or configures it.
 
 ## Rulesets and the plan
 

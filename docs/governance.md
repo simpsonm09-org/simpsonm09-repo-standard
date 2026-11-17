@@ -1,6 +1,6 @@
 # Governance
 
-This document defines the branch model and the protection rules for repositories in `simpsonm09-org`.
+This document defines the branch model and the protection rules for repositories in `simpsonm09-projects`.
 
 ## Branch model
 
@@ -16,7 +16,7 @@ Every organization repository requires a pull request to reach `main`, requires 
 
 ### Where a pull request may go
 
-Open a pull request, issue, or comment only on a repository owned by `simpsonm09` or `simpsonm09-org`, the owners of the personal and organization plugins. Never open one automatically against any other owner, including the project a fork came from. A contribution to a repository we do not own needs the maintainer's review first. `gh pr create` targets a fork's parent by default, so pass `-R <owner>/<repo>` with an owned repository, and push only to `origin`.
+Open a pull request, issue, or comment only on a repository owned by `simpsonm09-projects`, or by `simpsonm09` for the PStack plugin source. Never open one automatically against any other owner, including the project a dependency came from. A contribution to a repository we do not own needs the maintainer's review first. `gh pr create` targets a fork's parent by default, so pass `-R <owner>/<repo>` with an owned repository, and push only to `origin`.
 
 Merge through the rulesets below. Use an administrator merge only on an owned repository, only when the maintainer grants it for the current session, and only after every check on the pull request's head is green.
 
