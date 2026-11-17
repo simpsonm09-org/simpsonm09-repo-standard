@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   release:
-    if: github.repository_owner == 'simpsonm09-org'
+    if: github.repository_owner == 'simpsonm09-org' || github.repository_owner == 'simpsonm09-projects'
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout

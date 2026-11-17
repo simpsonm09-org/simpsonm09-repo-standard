@@ -2,7 +2,12 @@
 // checkers need no YAML parser. A job is a two-space key under `jobs:`, and its
 // block is the indented lines that follow it.
 
-export const EXTERNAL_WORKFLOW = /^simpsonm09-org\/simpsonm09-repo-standard\/\.github\/workflows\/([a-z0-9-]+)\.yml@([0-9a-fA-F]{40})$/;
+// Both owners resolve to the same repository: the organization is being renamed
+// from simpsonm09-org to simpsonm09-projects, and a caller keeps a working pin
+// through the change only if this check accepts either spelling.
+export const REPO_STANDARD_OWNERS = ['simpsonm09-org', 'simpsonm09-projects'];
+
+export const EXTERNAL_WORKFLOW = /^(?:simpsonm09-org|simpsonm09-projects)\/simpsonm09-repo-standard\/\.github\/workflows\/([a-z0-9-]+)\.yml@([0-9a-fA-F]{40})$/;
 export const LOCAL_WORKFLOW = /^\.\/\.github\/workflows\/([a-z0-9-]+)\.yml$/;
 
 export function parseJobs(text) {

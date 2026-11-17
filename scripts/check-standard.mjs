@@ -8,7 +8,7 @@ import { checkScripting } from './lib/scripting.mjs';
 import { checkEnv } from './lib/env.mjs';
 import { checkSubprocess } from './lib/subprocess.mjs';
 import { checkDocs, hasCoverageRecipe } from './lib/docs.mjs';
-import { EXTERNAL_WORKFLOW, LOCAL_WORKFLOW, findUses, jobsCalling, parseJobs } from './lib/ci.mjs';
+import { EXTERNAL_WORKFLOW, LOCAL_WORKFLOW, REPO_STANDARD_OWNERS, findUses, jobsCalling, parseJobs } from './lib/ci.mjs';
 import { ALL_CHECKS_REQUIRED, COVERAGE_MISSING_MESSAGE } from './lib/required.mjs';
 import { allChecksGaps, codeownersGaps } from './lib/all-checks.mjs';
 import { normalize, readText } from './lib/tree.mjs';
@@ -49,7 +49,9 @@ export const COMMUNITY_PATHS = [
 ];
 
 const SHARED_JOBS = ['lint', 'aislop', 'security', 'standard'];
-const STANDARD_REPO = 'simpsonm09-org/simpsonm09-repo-standard';
+// A caller may pin the shared workflows through either owner spelling while the
+// organization rename is in flight.
+const STANDARD_PIN_PREFIXES = REPO_STANDARD_OWNERS.map((owner) => `${owner}/simpsonm09-repo-standard/`);
 const SHA_PATTERN = /^[0-9a-fA-F]{40}$/;
 const GROUPS = ['files', 'mise', 'ci', 'dependabot', 'community', 'docs', 'scripting', 'env', 'subprocess'];
 
@@ -142,7 +144,7 @@ function checkSharedJob(job, jobs, external, local, isSelf, add) {
 function checkPins(text, add) {
   for (const match of text.matchAll(/^\s*uses:\s*(\S+)/gm)) {
     const ref = match[1];
-    if (!ref.includes(`${STANDARD_REPO}/`)) continue;
+    if (!STANDARD_PIN_PREFIXES.some((prefix) => ref.includes(prefix))) continue;
     const at = ref.lastIndexOf('@');
     if (at === -1 || !SHA_PATTERN.test(ref.slice(at + 1))) {
       add('ci/pin', `unpinned repo-standard reference ${ref}`);

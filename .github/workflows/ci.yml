@@ -14,33 +14,33 @@ concurrency:
 
 jobs:
   lint:
-    if: github.repository_owner == 'simpsonm09-org'
+    if: github.repository_owner == 'simpsonm09-org' || github.repository_owner == 'simpsonm09-projects'
     uses: ./.github/workflows/lint.yml # zizmor: ignore[self-repository] actionlint rejects the $/ form
   aislop:
-    if: github.repository_owner == 'simpsonm09-org'
+    if: github.repository_owner == 'simpsonm09-org' || github.repository_owner == 'simpsonm09-projects'
     permissions:
       contents: read
       security-events: write
     uses: ./.github/workflows/aislop.yml # zizmor: ignore[self-repository] actionlint rejects the $/ form
   security:
-    if: github.repository_owner == 'simpsonm09-org'
+    if: github.repository_owner == 'simpsonm09-org' || github.repository_owner == 'simpsonm09-projects'
     permissions:
       contents: read
       security-events: write
     uses: ./.github/workflows/security.yml # zizmor: ignore[self-repository] actionlint rejects the $/ form
   standard:
-    if: github.repository_owner == 'simpsonm09-org'
+    if: github.repository_owner == 'simpsonm09-org' || github.repository_owner == 'simpsonm09-projects'
     permissions:
       contents: read
     uses: ./.github/workflows/standard.yml # zizmor: ignore[self-repository] actionlint rejects the $/ form
   coverage:
-    if: github.repository_owner == 'simpsonm09-org'
+    if: github.repository_owner == 'simpsonm09-org' || github.repository_owner == 'simpsonm09-projects'
     permissions:
       contents: read
     uses: ./.github/workflows/coverage.yml # zizmor: ignore[self-repository] actionlint rejects the $/ form
 
   test:
-    if: github.repository_owner == 'simpsonm09-org'
+    if: github.repository_owner == 'simpsonm09-org' || github.repository_owner == 'simpsonm09-projects'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -64,7 +64,7 @@ jobs:
         run: node scripts/ruleset-payload.mjs --self-test
 
   test-windows:
-    if: github.repository_owner == 'simpsonm09-org'
+    if: github.repository_owner == 'simpsonm09-org' || github.repository_owner == 'simpsonm09-projects'
     runs-on: windows-latest
     timeout-minutes: 15
     steps:
@@ -78,7 +78,7 @@ jobs:
         run: just test-portable
 
   test-macos:
-    if: github.repository_owner == 'simpsonm09-org'
+    if: github.repository_owner == 'simpsonm09-org' || github.repository_owner == 'simpsonm09-projects'
     runs-on: macos-latest
     timeout-minutes: 15
     steps:
