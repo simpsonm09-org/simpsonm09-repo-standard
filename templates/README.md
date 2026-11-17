@@ -2,8 +2,10 @@
 
 <One sentence: what it is and who uses it.>
 
-The original lives in `simpsonm09-projects/<repo>`; work happens on the personal fork.
-See [`repo-standard`](https://github.com/simpsonm09-projects/simpsonm09-repo-standard).
+This repository lives in `simpsonm09-projects/<repo>`. Work happens on a branch
+with a pull request into `main`.
+See [`repo-standard`](https://github.com/simpsonm09-projects/simpsonm09-repo-standard)
+for the branch model and the protection rules.
 
 ## What it does
 

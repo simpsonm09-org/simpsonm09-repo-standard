@@ -55,7 +55,7 @@ The standard applies them once with `apply-settings` and does not audit them. Se
 [github-settings.md](github-settings.md).
 
 A repository also cannot see another repository through the API, so nothing
-checks a fork or a sibling in CI. Each repository is responsible for itself. The
+checks a sibling repository in CI. Each repository is responsible for itself. The
 local fleet audit reads sibling checkouts on disk instead, outside CI.
 
 ## Exceptions

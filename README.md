@@ -1,6 +1,6 @@
 # repo-standard
 
-The reusable repository standard for `simpsonm09-org`. It owns the shared CI, linting, security scanning, and branch governance that every other repository consumes.
+The reusable repository standard for `simpsonm09-projects`. It owns the shared CI, linting, security scanning, and branch governance that every other repository consumes.
 
 ## What it provides
 
@@ -23,7 +23,7 @@ The reusable repository standard for `simpsonm09-org`. It owns the shared CI, li
 
 ## Consumption model
 
-An original repository lives in `simpsonm09-org`. A personal fork lives under `simpsonm09`. Work happens on the fork. See [`docs/governance.md`](docs/governance.md) for the branch model and the protection rules.
+Every repository lives in the `simpsonm09-projects` organization. Work happens on a branch in that repository, with a pull request into `main`; the organization also requires signed commits and the required status checks. See [`docs/governance.md`](docs/governance.md) for the branch model and the protection rules.
 
 To adopt the standard in a repository, follow [`docs/adoption.md`](docs/adoption.md).
 
@@ -55,5 +55,5 @@ MIT. See [`LICENSE`](LICENSE).
 
 ## Related repositories
 
-- [`repo-template`](https://github.com/simpsonm09-org/simpsonm09-repo-template) is the generated-repo starting point.
-- [`maxstack`](https://github.com/simpsonm09-org/simpsonm09-maxstack) composes the plugin layers for OpenCode and Claude Code. The org plugin also provides agent-access gates for GitHub Copilot CLI and Pi.
+- [`repo-template`](https://github.com/simpsonm09-projects/simpsonm09-repo-template) is the generated-repo starting point.
+- [`maxstack`](https://github.com/simpsonm09-projects/simpsonm09-maxstack) composes the plugin layers for OpenCode and Claude Code. The org plugin also provides agent-access gates for GitHub Copilot CLI and Pi.

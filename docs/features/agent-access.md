@@ -2,7 +2,7 @@
 
 Agent access answers one question for one repository. How much may an AI agent do
 against it? The policy is intent, and it lives in
-[`repo-catalog`](https://github.com/simpsonm09-org/simpsonm09-repo-catalog). The
+[`repo-catalog`](https://github.com/simpsonm09-projects/simpsonm09-repo-catalog). The
 resolver and the push guard live here, because the standard owns enforcement.
 
 ## The level
@@ -255,11 +255,13 @@ must forward the classifier capability unchanged, including `forbidden`.
 
 A `git push` is governed only when it targets the organization remote. The gate
 and the [push hook](#the-push-guard) share one rule: a remote URL under
-`github.com/simpsonm09-org/` is in scope, and every other remote, including the
-personal fork under `github.com/simpsonm09/`, is out of scope.
+`github.com/simpsonm09-projects/` is in scope, and every other remote, including a
+repository under `github.com/simpsonm09/`, is out of scope. The scope markers
+also accept the pre-rename `simpsonm09-org` owner, so a clone that still carries an
+old remote URL stays governed.
 
-The scope enters through the optional remote URL. When it is known and does not
-contain `simpsonm09-org`, `classify` returns `null` for the push, so the level does
+The scope enters through the optional remote URL. When it is known and matches neither
+owner marker, `classify` returns `null` for the push, so the level does
 not govern it and every level allows it. When the URL is unknown, the push stays
 governed, so a caller that cannot resolve the remote fails closed. The `--command`
 CLI mode takes the URL as `--remote-url <url>`; without it the behavior is
@@ -428,7 +430,7 @@ tree cannot raise a level. A missing catalog or clone denies remote writes.
 `.git/hooks/pre-push`. It reads the refs on stdin, resolves the repository from the
 remote URL, and refuses a push the level does not allow. A push to `main` or a tag
 needs `pushMain`, and a push to any other branch needs `pushBranch`. It governs a
-URL under `github.com/simpsonm09-org/` and passes every other remote, so the
+URL under `github.com/simpsonm09-projects/` and passes every other remote, so the
 resolver's push scope above matches the hook exactly.
 
 ```mermaid
@@ -447,7 +449,7 @@ The guard fails closed on remote writes.
 - A missing or unreadable catalog exits `2`, and the hook refuses the push.
 - A missing resolver makes the hook refuse the push, with the expected path in the message.
 - A repository absent from the roster resolves to `read`, so a branch push is refused.
-- A remote that is not under `simpsonm09-org` is out of scope. The personal fork is a private mirror, so the guard leaves it alone. The resolver agrees when the gate passes the remote URL it is pushing to.
+- A remote that is not under a governed owner, `simpsonm09-projects` or its pre-rename `simpsonm09-org` spelling, is out of scope, so the guard leaves it alone. The resolver agrees when the gate passes the remote URL it is pushing to.
 
 ## The agent identity
 
@@ -486,8 +488,8 @@ The broker keeps the app's existing installation permission defaults. It does no
 narrow permissions by operation.
 
 ```bash
-node scripts/agent-token.mjs simpsonm09-org/simpsonm09-repo-catalog
-node scripts/agent-token.mjs simpsonm09-org/simpsonm09-repo-catalog --json
+node scripts/agent-token.mjs simpsonm09-projects/simpsonm09-repo-catalog
+node scripts/agent-token.mjs simpsonm09-projects/simpsonm09-repo-catalog --json
 ```
 
 The app id and key come from `AGENT_APP_ID` and `AGENT_APP_PRIVATE_KEY`, with a
@@ -500,12 +502,12 @@ The push guard is a git hook, so it runs for a `git push` from a clone that has 
 installed, unless the push skips hooks. The org plugin ships agent-side gates for
 OpenCode, Claude Code, GitHub Copilot CLI, and Pi. All four use the shared resolver and
 gate decision, so a level means the same thing in each. They act only in a fleet repository,
-a clone under `projects\repos` or a worktree of one. Any other path is not gated. See the org plugin's [gate overview](https://github.com/simpsonm09-org/simpsonm09-org-ai-plugin#the-agent-access-gate).
+a clone under `projects\repos` or a worktree of one. Any other path is not gated. See the org plugin's [gate overview](https://github.com/simpsonm09-projects/simpsonm09-org-ai-plugin#the-agent-access-gate).
 
 - **OpenCode** calls the gate in its `create.before` shell hook. It rewrites denied
   commands to a shell-specific error and sets `GH_TOKEN` for an allowed `gh` command.
   Resolver-permitted writes run without an approval prompt. See the plugin README's
-  [Known limits](https://github.com/simpsonm09-org/simpsonm09-org-ai-plugin#known-limits).
+  [Known limits](https://github.com/simpsonm09-projects/simpsonm09-org-ai-plugin#known-limits).
 - **Claude Code** uses `PreToolUse` for Bash and PowerShell. It denies disallowed calls
   and rewrites allowed Bash `gh` calls through the token launcher. Read-only `gh` calls
   run without a prompt; other allowed `gh` calls ask first. `gh` in PowerShell is denied
@@ -521,16 +523,16 @@ a clone under `projects\repos` or a worktree of one. Any other path is not gated
 
 All adapters decide from the first command only. They do not inspect scripts or later
 commands in a chain. Unclassified non-`gh` commands can pass, and the adapters differ in failure
-handling, prompting, and shell coverage. The plugin README's [Known limits](https://github.com/simpsonm09-org/simpsonm09-org-ai-plugin#known-limits)
-and [Known limits (Pi)](https://github.com/simpsonm09-org/simpsonm09-org-ai-plugin#known-limits-pi)
+handling, prompting, and shell coverage. The plugin README's [Known limits](https://github.com/simpsonm09-projects/simpsonm09-org-ai-plugin#known-limits)
+and [Known limits (Pi)](https://github.com/simpsonm09-projects/simpsonm09-org-ai-plugin#known-limits-pi)
 sections have the complete shared and harness-specific list, including behavior that has not been
 measured live.
 
 The Copilot hook must keep the native camelCase event keys. PascalCase keys do not tell
 the adapter which shell dialect is in use, so it denies the call. For more detail on the
-four adapter protocols, see the org plugin README's [gate overview](https://github.com/simpsonm09-org/simpsonm09-org-ai-plugin#the-agent-access-gate),
-the [Copilot build](https://github.com/simpsonm09-org/simpsonm09-org-ai-plugin#github-copilot-cli-build),
-and the [Pi build](https://github.com/simpsonm09-org/simpsonm09-org-ai-plugin#pi-coding-agent-build).
+four adapter protocols, see the org plugin README's [gate overview](https://github.com/simpsonm09-projects/simpsonm09-org-ai-plugin#the-agent-access-gate),
+the [Copilot build](https://github.com/simpsonm09-projects/simpsonm09-org-ai-plugin#github-copilot-cli-build),
+and the [Pi build](https://github.com/simpsonm09-projects/simpsonm09-org-ai-plugin#pi-coding-agent-build).
 
 The Claude hook can fail open if Claude Code kills it at its own hook timeout or cannot find
 `node`; its internal failures deny. Copilot's timeout behavior and its PowerShell rewrite
@@ -539,8 +541,8 @@ rewritten command or accepts the documented confirmation API has not been verifi
 On Windows, Bash token launches require Git Bash. Copilot's PowerShell launches use Windows
 PowerShell. The plugin also needs Node and Git, plus
 the local repo-standard resolver/catalog. Tokenized `gh` calls require broker credentials and a
-successful token mint. See the plugin README's [Known limits](https://github.com/simpsonm09-org/simpsonm09-org-ai-plugin#known-limits)
-and [Known limits (Pi)](https://github.com/simpsonm09-org/simpsonm09-org-ai-plugin#known-limits-pi)
+successful token mint. See the plugin README's [Known limits](https://github.com/simpsonm09-projects/simpsonm09-org-ai-plugin#known-limits)
+and [Known limits (Pi)](https://github.com/simpsonm09-projects/simpsonm09-org-ai-plugin#known-limits-pi)
 for the precise cases and remaining limits.
 
 ## What this does not do

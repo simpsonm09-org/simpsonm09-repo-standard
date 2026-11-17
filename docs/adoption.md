@@ -13,10 +13,10 @@ The caller template pins each reusable workflow to a reviewed, published revisio
 The trailing comment on each pinned line names what the line pins:
 
 ```yaml
-uses: simpsonm09-org/simpsonm09-repo-standard/.github/workflows/lint.yml@<sha> # repo-standard, pinned commit
+uses: simpsonm09-projects/simpsonm09-repo-standard/.github/workflows/lint.yml@<sha> # repo-standard, pinned commit
 ```
 
-Run this workflow in the upstream repository. The fleet rule is that a personal fork runs no Actions, and the upstream repository runs the caller on pushes to `main` and on pull requests. Disable Actions on every personal fork, in its Settings under Actions and General, or with `gh api -X PUT repos/<owner>/<repo>/actions/permissions -F enabled=false`.
+Run this workflow in the repository itself. It runs the caller on pushes to `main` and on pull requests. A mirror or a personal copy runs none of these: the run would be redundant beside the repository's own.
 
 The shared jobs do not run tests. Add the repository's own `test` job next to them. See [`testing.md`](testing.md).
 

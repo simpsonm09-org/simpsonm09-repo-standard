@@ -17,7 +17,7 @@ The test: would this help another repository? If so, it belongs in a plugin. A r
 
 ## Harnesses
 
-The four gate harnesses load the org plugin through different entry points. See the org plugin README's [plugin loading](https://github.com/simpsonm09-org/simpsonm09-org-ai-plugin#how-it-gets-loaded), [Copilot build](https://github.com/simpsonm09-org/simpsonm09-org-ai-plugin#github-copilot-cli-build), and [Pi build](https://github.com/simpsonm09-org/simpsonm09-org-ai-plugin#pi-coding-agent-build) for those details.
+The four gate harnesses load the org plugin through different entry points. See the org plugin README's [plugin loading](https://github.com/simpsonm09-projects/simpsonm09-org-ai-plugin#how-it-gets-loaded), [Copilot build](https://github.com/simpsonm09-projects/simpsonm09-org-ai-plugin#github-copilot-cli-build), and [Pi build](https://github.com/simpsonm09-projects/simpsonm09-org-ai-plugin#pi-coding-agent-build) for those details.
 
 | Harness | Org plugin entry point | Gate adapter | Repo-local skills (`.claude/skills/`) | Repo-local agents (`.opencode/agents/`) |
 | --- | --- | --- | --- | --- |

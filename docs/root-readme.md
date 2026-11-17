@@ -10,7 +10,7 @@ Use these sections in this order.
 | --- | --- | --- |
 | `# <repo-name>` | yes | The repository name. |
 | Purpose | yes | One sentence that says what it is and who uses it. |
-| Source of truth | forked repos | The upstream repository and the fork rule. |
+| Source of truth | yes | The `simpsonm09-projects` repository it lives in, and the branch-and-PR rule. |
 | `## Status` | scaffolds | The current state. |
 | `## What it does` | yes | The short version. |
 | `## Quick start` | yes | The shortest path to run it. |
@@ -30,14 +30,16 @@ Use these sections in this order.
 
 ## Source of truth
 
-A forked repository states the source of truth in the opening section.
+State where the repository lives in the opening section.
 
 ```
-The original lives in `simpsonm09-org/<repo>`; work happens on the personal fork.
-See [`repo-standard`](https://github.com/simpsonm09-org/simpsonm09-repo-standard).
+This repository lives in `simpsonm09-projects/<repo>`. Work happens on a branch
+with a pull request into `main`.
+See [`repo-standard`](https://github.com/simpsonm09-projects/simpsonm09-repo-standard)
+for the branch model and the protection rules.
 ```
 
-A source repository states that it is the source, as `repo-standard` and `repo-template` do.
+A source repository states that it is the source, as `repo-standard` and `repo-template` do. The one personal repository is the PStack plugin source, `simpsonm09/pstack-max`, a fork of `michael-denyer/pstack-claude`; it states that it is a fork and where the upstream lives.
 
 ## Start from the template
 
