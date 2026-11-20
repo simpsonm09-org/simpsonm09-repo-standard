@@ -5,22 +5,22 @@
   },
   "repos": [
     {
-      "name": "simpsonm09-fixture-nest",
+      "name": "fixture-nest",
       "tier": "fixture",
       "agentAccess": "propose"
     },
     {
-      "name": "simpsonm09-fixture-go",
+      "name": "fixture-go",
       "tier": "fixture",
       "agentAccess": "full"
     },
     {
-      "name": "simpsonm09-fixture-rust",
+      "name": "fixture-rust",
       "tier": "fixture",
       "agentAccess": "merge"
     },
     {
-      "name": "simpsonm09-fixture-dotnet",
+      "name": "fixture-dotnet",
       "tier": "fixture",
       "agentAccess": "read"
     }

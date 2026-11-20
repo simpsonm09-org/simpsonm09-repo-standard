@@ -73,10 +73,10 @@ const POLICY_IGNORE = {
 // Each fixture repository and the exact level its catalog entry declares. The
 // catalog is a fixture, so the live roster is never read.
 const FIXTURES = [
-  { repo: 'simpsonm09-fixture-nest', level: 'propose' },
-  { repo: 'simpsonm09-fixture-go', level: 'full' },
-  { repo: 'simpsonm09-fixture-rust', level: 'merge' },
-  { repo: 'simpsonm09-fixture-dotnet', level: 'read' },
+  { repo: 'fixture-nest', level: 'propose' },
+  { repo: 'fixture-go', level: 'full' },
+  { repo: 'fixture-rust', level: 'merge' },
+  { repo: 'fixture-dotnet', level: 'read' },
 ];
 
 // Representative commands, the capability each needs, and whether the level
@@ -128,7 +128,7 @@ function testFixtureLevels(assert, catalog) {
       assert(EXPECTED[level][capability] === true, `level ${level} grants ${capability}`);
     }
   }
-  const read = resolveLevel(catalog, 'simpsonm09-fixture-dotnet').level;
+  const read = resolveLevel(catalog, 'fixture-dotnet').level;
   for (const { command, capability } of COMMANDS) {
     if (capability === null) continue;
     assert(decide(read, command).allowed === false, `read denies every remote write (${command})`);
@@ -524,8 +524,8 @@ function testShellBoundaryFixes(assert) {
 // an upstream or an unknown destination gets reads only.
 function testDestinationPolicy(assert) {
   const roster = loadCatalog(FIXTURE_CATALOG);
-  const nest = 'simpsonm09-fixture-nest';
-  const dotnet = 'simpsonm09-fixture-dotnet';
+  const nest = 'fixture-nest';
+  const dotnet = 'fixture-dotnet';
   const at = (localRepo, destination, host = 'github.com') =>
     resolveDestination({ roster, ownedForks: OWNED_FORKS, ownedRepositories: OWNED_REPOSITORIES, ignore: EMPTY_IGNORE, localRepo, host, destination });
   testRecognizedDestinations(assert, at, nest, dotnet);
@@ -537,7 +537,7 @@ function testDestinationPolicy(assert) {
 function testRecognizedDestinations(assert, at, nest, dotnet) {
   const recognized = [
     { name: 'the organization repository', local: nest, destination: `simpsonm09-org/${nest}`, kind: 'org', level: 'propose', source: 'org' },
-    { name: 'a differently cased organization repository', local: nest, destination: 'SimpsonM09-Org/SimpsonM09-Fixture-Nest', kind: 'org', level: 'propose', source: 'org' },
+    { name: 'a differently cased organization repository', local: nest, destination: 'SimpsonM09-Org/Fixture-Nest', kind: 'org', level: 'propose', source: 'org' },
     { name: 'the personal push fork of a propose repository', local: nest, destination: `simpsonm09/${nest}`, kind: 'org', level: 'propose', source: 'personal-fork' },
     { name: 'the personal push fork of a read repository', local: dotnet, destination: `simpsonm09/${dotnet}`, kind: 'org', level: 'read', source: 'personal-fork' },
     { name: 'an owned fork', local: 'pstack-max', destination: OWNED_ENTRY.repository, kind: 'owned-fork', level: 'propose', source: 'owned-fork' },
@@ -552,7 +552,7 @@ function testRecognizedDestinations(assert, at, nest, dotnet) {
 
   const unknown = [
     { name: 'a third-party repository named like a governed repository', local: nest, destination: `acme/${nest}` },
-    { name: "another governed repository's fork", local: nest, destination: 'simpsonm09/simpsonm09-fixture-go' },
+    { name: "another governed repository's fork", local: nest, destination: 'simpsonm09/fixture-go' },
     { name: 'an unrelated third party', local: nest, destination: 'acme/unrelated' },
     { name: 'another host', local: nest, destination: `simpsonm09-org/${nest}`, host: 'gitlab.com' },
     { name: 'an unlisted organization repository', local: nest, destination: 'simpsonm09-org/not-listed' },
@@ -687,7 +687,7 @@ function testDestinationGrants(assert, at, nest, dotnet) {
   assert(decideTarget(orgRead, push()).allowed === false, 'a read repository denies a branch push');
   assert(decideTarget(orgPropose, push({ resolved: false })).allowed === false, 'an org branch push denies an unresolved ref');
 
-  const orgFull = at('simpsonm09-fixture-go', 'simpsonm09-org/simpsonm09-fixture-go');
+  const orgFull = at('fixture-go', 'simpsonm09-org/fixture-go');
   assert(decideTarget(orgFull, { operation: 'admin', capability: FORBIDDEN_CAPABILITY, readOnly: false, resolved: true }).allowed === false, 'structured consumers cannot grant the forbidden capability at full');
   const mainPush = push({ capability: 'pushMain', refs: [{ kind: 'branch', name: 'main', isDefault: true }] });
   const tagPush = push({ capability: 'pushMain', refs: [{ kind: 'tag', name: 'v1', isDefault: false }] });
@@ -701,13 +701,13 @@ function testDestinationGrants(assert, at, nest, dotnet) {
   assert(decideTarget(orgFull, { ...mainPush, refs: [...mainPush.refs, ...mainPush.refs] }).allowed === false, 'multiple protected refspecs are denied');
   const pairedPr = {
     operation: 'openPr', capability: 'openPr', readOnly: false, resolved: true,
-    base: { owner: 'simpsonm09-org', repo: 'simpsonm09-fixture-go', branch: 'main' },
-    head: { owner: 'simpsonm09', repo: 'simpsonm09-fixture-go', branch: 'feat/x' },
+    base: { owner: 'simpsonm09-org', repo: 'fixture-go', branch: 'main' },
+    head: { owner: 'simpsonm09', repo: 'fixture-go', branch: 'feat/x' },
   };
   assert(decideTarget(orgFull, pairedPr).allowed === true, 'an org pull request accepts its paired personal-fork head');
   assert(decideTarget(orgFull, { ...pairedPr, resolved: false }).allowed === false, 'an unresolved organization pull request is denied');
   assert(decideTarget(orgFull, { ...pairedPr, base: { owner: 'acme', repo: 'other' } }).allowed === false, 'an org pull request rejects a foreign base');
-  assert(decideTarget(orgFull, { ...pairedPr, head: { owner: 'cursor', repo: 'simpsonm09-fixture-go' } }).allowed === false, 'an org pull request rejects an unpaired head');
+  assert(decideTarget(orgFull, { ...pairedPr, head: { owner: 'cursor', repo: 'fixture-go' } }).allowed === false, 'an org pull request rejects an unpaired head');
 
   testPullRequestSides(assert, owned, standalone, push);
   testIntentConsistency(assert, at, push, orgPropose);
@@ -904,7 +904,7 @@ function testCommittedIgnore(assert) {
 
     const roster = loadCatalog(FIXTURE_CATALOG);
     const ownedForks = OWNED_FORKS;
-    const missingPolicy = resolveDestination({ roster, ownedForks, localRepo: 'simpsonm09-fixture-go', host: 'github.com', destination: 'simpsonm09-org/simpsonm09-fixture-go' });
+    const missingPolicy = resolveDestination({ roster, ownedForks, localRepo: 'fixture-go', host: 'github.com', destination: 'simpsonm09-org/fixture-go' });
     assert(missingPolicy.kind === 'unknown' && missingPolicy.source === 'ignore-unavailable', 'destination resolution fails closed without a validated ignore policy');
     for (const intent of [
       { operation: 'read', capability: 'read', readOnly: true, resolved: true },
@@ -981,25 +981,25 @@ function testHook(assert) {
     const orgUrl = (repo) => `https://github.com/simpsonm09-org/${repo}.git`;
     const orgScpUrl = (repo) => `git@github.com:simpsonm09-org/${repo}.git`;
     const forkUrl = (repo) => `https://github.com/simpsonm09/${repo}.git`;
-    const nest = orgUrl('simpsonm09-fixture-nest');
-    const go = orgUrl('simpsonm09-fixture-go');
-    const rust = orgUrl('simpsonm09-fixture-rust');
-    const dotnet = orgUrl('simpsonm09-fixture-dotnet');
+    const nest = orgUrl('fixture-nest');
+    const go = orgUrl('fixture-go');
+    const rust = orgUrl('fixture-rust');
+    const dotnet = orgUrl('fixture-dotnet');
 
     const cases = [
       { name: 'propose allows a branch push', ref: 'refs/heads/feat/x', url: nest, exit: 0 },
       { name: 'propose denies a main push', ref: 'refs/heads/main', url: nest, exit: 1 },
       { name: 'full allows a main push', ref: 'refs/heads/main', url: go, exit: 0 },
       { name: 'full allows a tag push', ref: 'refs/tags/v1', url: go, exit: 0 },
-      { name: 'full allows an SCP-style organization remote', ref: 'refs/heads/feat/x', url: orgScpUrl('simpsonm09-fixture-go'), exit: 0 },
+      { name: 'full allows an SCP-style organization remote', ref: 'refs/heads/feat/x', url: orgScpUrl('fixture-go'), exit: 0 },
       { name: 'merge denies a main push', ref: 'refs/heads/main', url: rust, exit: 1 },
       { name: 'merge denies a tag push', ref: 'refs/tags/v1', url: rust, exit: 1 },
       { name: 'read denies a branch push', ref: 'refs/heads/feat/x', url: dotnet, exit: 1 },
-      { name: 'read denies a branch push to an SCP-style organization remote', ref: 'refs/heads/feat/x', url: orgScpUrl('simpsonm09-fixture-dotnet'), exit: 1 },
-      { name: 'read denies a branch push to an HTTP organization remote', ref: 'refs/heads/feat/x', url: 'http://github.com/simpsonm09-org/simpsonm09-fixture-dotnet.git', exit: 1 },
+      { name: 'read denies a branch push to an SCP-style organization remote', ref: 'refs/heads/feat/x', url: orgScpUrl('fixture-dotnet'), exit: 1 },
+      { name: 'read denies a branch push to an HTTP organization remote', ref: 'refs/heads/feat/x', url: 'http://github.com/simpsonm09-org/fixture-dotnet.git', exit: 1 },
       { name: 'read denies a tag push', ref: 'refs/tags/v1', url: dotnet, exit: 1 },
-      { name: 'a fork remote is out of scope', ref: 'refs/heads/main', url: forkUrl('simpsonm09-fixture-dotnet'), exit: 0 },
-      { name: 'an SCP-style personal fork remote is out of scope', ref: 'refs/heads/main', url: `git@github.com:simpsonm09/simpsonm09-fixture-dotnet.git`, exit: 0 },
+      { name: 'a fork remote is out of scope', ref: 'refs/heads/main', url: forkUrl('fixture-dotnet'), exit: 0 },
+      { name: 'an SCP-style personal fork remote is out of scope', ref: 'refs/heads/main', url: `git@github.com:simpsonm09/fixture-dotnet.git`, exit: 0 },
     ];
 
     for (const { name, ref, url, exit } of cases) {
@@ -1034,42 +1034,42 @@ function testCli(assert) {
   assert(noRepo.status === EXIT.USAGE, `no repository argument exits ${EXIT.USAGE}, got ${noRepo.status}`);
   assert(noRepo.stderr.includes('usage: agent-access'), 'the missing-repo path prints usage to stderr');
 
-  const level = runResolver(['simpsonm09-fixture-rust', '--catalog', FIXTURE_CATALOG]);
+  const level = runResolver(['fixture-rust', '--catalog', FIXTURE_CATALOG]);
   assert(level.status === EXIT.OK, `the level mode exits ${EXIT.OK}, got ${level.status}`);
   assert(level.stdout.trim() === 'merge', `the level mode prints the level, got ${JSON.stringify(level.stdout.trim())}`);
 
-  const asJson = runResolver(['simpsonm09-fixture-rust', '--catalog', FIXTURE_CATALOG, '--json']);
+  const asJson = runResolver(['fixture-rust', '--catalog', FIXTURE_CATALOG, '--json']);
   assert(asJson.status === EXIT.OK, `the JSON level mode exits ${EXIT.OK}, got ${asJson.status}`);
   const parsed = JSON.parse(asJson.stdout);
   assert(parsed.level === 'merge' && Array.isArray(parsed.capabilities), 'the JSON level mode carries the level and capabilities');
 
-  const allowed = runResolver(['simpsonm09-fixture-go', '--catalog', FIXTURE_CATALOG, '--allows', 'pushMain']);
+  const allowed = runResolver(['fixture-go', '--catalog', FIXTURE_CATALOG, '--allows', 'pushMain']);
   assert(allowed.status === EXIT.OK, `an allowed capability exits ${EXIT.OK}, got ${allowed.status}`);
-  const denied = runResolver(['simpsonm09-fixture-rust', '--catalog', FIXTURE_CATALOG, '--allows', 'pushMain']);
+  const denied = runResolver(['fixture-rust', '--catalog', FIXTURE_CATALOG, '--allows', 'pushMain']);
   assert(denied.status === EXIT.FAIL, `a denied capability exits ${EXIT.FAIL}, got ${denied.status}`);
-  const broadAdmin = runResolver(['simpsonm09-fixture-go', '--catalog', FIXTURE_CATALOG, '--allows', 'admin']);
+  const broadAdmin = runResolver(['fixture-go', '--catalog', FIXTURE_CATALOG, '--allows', 'admin']);
   assert(broadAdmin.status === EXIT.OK, 'the public --allows interface preserves full admin capability');
 
   const permitted = runResolver([
-    'simpsonm09-fixture-go', '--catalog', FIXTURE_CATALOG,
-    '--command', 'git push origin feat/x', '--remote-url', 'https://github.com/simpsonm09-org/simpsonm09-fixture-go.git', '--json',
+    'fixture-go', '--catalog', FIXTURE_CATALOG,
+    '--command', 'git push origin feat/x', '--remote-url', 'https://github.com/simpsonm09-org/fixture-go.git', '--json',
   ]);
   assert(permitted.status === EXIT.OK, `an allowed command exits ${EXIT.OK}, got ${permitted.status}`);
   const decision = JSON.parse(permitted.stdout);
   assert(decision.allowed === true && decision.capability === 'pushBranch', 'the command JSON carries the capability and verdict');
   const governed = runResolver([
-    'simpsonm09-fixture-rust', '--catalog', FIXTURE_CATALOG,
-    '--command', 'git push origin main', '--remote-url', 'https://github.com/simpsonm09-org/simpsonm09-fixture-rust.git',
+    'fixture-rust', '--catalog', FIXTURE_CATALOG,
+    '--command', 'git push origin main', '--remote-url', 'https://github.com/simpsonm09-org/fixture-rust.git',
   ]);
   assert(governed.status === EXIT.FAIL, `a denied command exits ${EXIT.FAIL}, got ${governed.status}`);
   const approval = runResolver([
-    'simpsonm09-fixture-go', '--catalog', FIXTURE_CATALOG, '--command', 'gh pr review 52 --approve', '--json',
+    'fixture-go', '--catalog', FIXTURE_CATALOG, '--command', 'gh pr review 52 --approve', '--json',
   ]);
   assert(approval.status === EXIT.FAIL, 'the public --command interface denies PR approval even when full has admin');
   const approvalDecision = JSON.parse(approval.stdout);
   assert(approvalDecision.allowed === false && approvalDecision.capability === FORBIDDEN_CAPABILITY, 'the --command response preserves the forbidden classification and denial');
 
-  const badCatalog = runResolver(['simpsonm09-fixture-go', '--catalog', join(HERE, 'no-such-catalog.json')]);
+  const badCatalog = runResolver(['fixture-go', '--catalog', join(HERE, 'no-such-catalog.json')]);
   assert(badCatalog.status === EXIT.USAGE, `an unreadable catalog exits ${EXIT.USAGE}, got ${badCatalog.status}`);
   assert(badCatalog.stderr.includes('cannot read the catalog'), 'an unreadable catalog prints the fail-closed message');
 
@@ -1104,7 +1104,7 @@ function testDestinationCli(assert) {
     assert(decision.capability === 'pushBranch', 'the destination JSON carries the capability');
 
     const ignored = runResolver([
-      'simpsonm09-fixture-go', '--catalog-dir', ignoredDir, '--host', 'github.com',
+      'fixture-go', '--catalog-dir', ignoredDir, '--host', 'github.com',
       '--destination', 'simpsonm09-org/steam_wishlist_cleanup',
       '--intent', JSON.stringify({ operation: 'read', capability: null, readOnly: true, resolved: true }), '--json',
     ]);
@@ -1149,9 +1149,9 @@ function testDestinationCli(assert) {
     const mainPush = runResolver(['fixture-owned', ...common, ...destination, '--intent', intent(defaultBranch)]);
     assert(mainPush.status === EXIT.FAIL, `an owned-fork default-branch push exits ${EXIT.FAIL}, got ${mainPush.status}`);
 
-    const forkPush = runResolver(['simpsonm09-fixture-nest', ...common, '--destination', 'simpsonm09/simpsonm09-fixture-nest', '--intent', intent()]);
+    const forkPush = runResolver(['fixture-nest', ...common, '--destination', 'simpsonm09/fixture-nest', '--intent', intent()]);
     assert(forkPush.status === EXIT.OK, `a personal push fork follows the org level (${forkPush.stderr.trim()})`);
-    const readFork = runResolver(['simpsonm09-fixture-dotnet', ...common, '--destination', 'simpsonm09/simpsonm09-fixture-dotnet', '--intent', intent()]);
+    const readFork = runResolver(['fixture-dotnet', ...common, '--destination', 'simpsonm09/fixture-dotnet', '--intent', intent()]);
     assert(readFork.status === EXIT.FAIL, `a read repository denies a fork push, got ${readFork.status}`);
 
     const upstream = runResolver(['fixture-owned', ...common, '--destination', OWNED_ENTRY.upstream, '--intent', intent()]);

@@ -28,7 +28,7 @@ const EXCEPTIONS = fileURLToPath(new URL('../docs/exceptions.json', import.meta.
 const STANDARD_ROOT = fileURLToPath(new URL('..', import.meta.url));
 const PIN = 'a'.repeat(40);
 const UNCOVERED_REPO = 'simpsonm09-projects/simpsonm09-repo-catalog';
-const COVERED_REPO = 'simpsonm09-projects/simpsonm09-fixture-go';
+const COVERED_REPO = 'simpsonm09-projects/fixture-go';
 const SHARED_JOBS = ['lint', 'aislop', 'security', 'standard'];
 const BASE_LIVE = ['lint / flint', 'aislop / aislop', 'security / trivy', 'security / secrets', 'standard / standard', 'test'];
 
@@ -303,7 +303,7 @@ function testRenamedOrgExceptions(assert) {
   const exceptions = loadExceptions(EXCEPTIONS);
   assert(kindOf(exceptions, 'simpsonm09-projects/simpsonm09-repo-catalog') === 'uncovered',
     'a coverage exception stays in force after the organization rename');
-  assert(kindOf(exceptions, 'simpsonm09-projects/simpsonm09-fixture-go') === 'covered',
+  assert(kindOf(exceptions, 'simpsonm09-projects/fixture-go') === 'covered',
     'a repository without an exception stays covered after the rename');
   assert(kindOf(exceptions, 'simpsonm09/simpsonm09-repo-catalog') === 'covered',
     'a personal fork of the same name never inherits the exception');

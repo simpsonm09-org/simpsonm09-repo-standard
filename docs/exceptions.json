@@ -1,7 +1,7 @@
 {
   "exceptions": [
     {
-      "repo": "simpsonm09-projects/simpsonm09-postman-test-utils",
+      "repo": "simpsonm09-projects/postman-test-utils",
       "checks": ["community/.aislop/config.yml"],
       "reason": "The aislop audit is off for this repository because newman's optional peer tree reports advisories with no upstream fix, and the Trivy scan is the dependency gate. The divergence is documented in the file.",
       "date": "2026-09-30"
@@ -13,7 +13,7 @@
       "date": "2026-10-12"
     },
     {
-      "repo": "simpsonm09-projects/simpsonm09-machine-inventory",
+      "repo": "simpsonm09-projects/machine-inventory",
       "checks": ["ci/coverage"],
       "reason": "Records, with tests for its own validators and renderers only. The machine records live in machines/. scripts/test.mjs tests the validators in scripts/lib/inventory.mjs and the renderer in scripts/render.mjs. The collect scripts are not under test. See docs/governance.md, Required checks.",
       "date": "2026-10-12"
