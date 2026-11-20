@@ -1039,9 +1039,9 @@ export function selfTest() {
   assert(allows('merge', 'mergePr') && allows('merge', 'pushMain') === false, 'merge capabilities');
   assert(allows('full', 'pushMain') && allows('full', 'admin'), 'full capabilities');
 
-  const fork = 'https://github.com/simpsonm09/simpsonm09-repo-standard.git';
-  const org = 'https://github.com/simpsonm09-org/simpsonm09-repo-standard.git';
-  const renamedOrg = 'https://github.com/simpsonm09-projects/simpsonm09-repo-standard.git';
+  const fork = 'https://github.com/simpsonm09/repo-standard.git';
+  const org = 'https://github.com/simpsonm09-org/repo-standard.git';
+  const renamedOrg = 'https://github.com/simpsonm09-projects/repo-standard.git';
 
   const table = [
     ['gh pr merge 1', 'mergePr'],

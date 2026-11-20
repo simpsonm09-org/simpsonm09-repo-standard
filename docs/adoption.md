@@ -4,7 +4,7 @@ Do these steps once per repository.
 
 ## 1. Add the caller workflow
 
-Copy [`templates/caller-ci.yml`](../templates/caller-ci.yml) to `.github/workflows/ci.yml` in the consuming repository. It calls the reusable lint, aislop, security, standard, and coverage workflows. Keep coverage enabled by default and complete the coverage task described in steps 2 and 3 before running conformance. If the repository cannot use the gate, remove the coverage job and request an exception on `ci/coverage`, keyed by this repository in `docs/exceptions.json` of `simpsonm09-repo-standard`. `check-repo` applies the pinned standard's exception file; an adopter-local exception file does not apply. A new opt-out therefore needs a reviewed change to the standard. See [governance.md](governance.md#required-checks).
+Copy [`templates/caller-ci.yml`](../templates/caller-ci.yml) to `.github/workflows/ci.yml` in the consuming repository. It calls the reusable lint, aislop, security, standard, and coverage workflows. Keep coverage enabled by default and complete the coverage task described in steps 2 and 3 before running conformance. If the repository cannot use the gate, remove the coverage job and request an exception on `ci/coverage`, keyed by this repository in `docs/exceptions.json` of `repo-standard`. `check-repo` applies the pinned standard's exception file; an adopter-local exception file does not apply. A new opt-out therefore needs a reviewed change to the standard. See [governance.md](governance.md#required-checks).
 
 The `standard` job runs [`check-repo.mjs`](../scripts/check-repo.mjs) for the repository and applies [`exceptions.json`](exceptions.json) from the pinned standard. It checks the tree-local groups on the pull request. See [`features/fleet-conformance.md`](features/fleet-conformance.md).
 
@@ -13,7 +13,7 @@ The caller template pins each reusable workflow to a reviewed, published revisio
 The trailing comment on each pinned line names what the line pins:
 
 ```yaml
-uses: simpsonm09-projects/simpsonm09-repo-standard/.github/workflows/lint.yml@<sha> # repo-standard, pinned commit
+uses: simpsonm09-projects/repo-standard/.github/workflows/lint.yml@<sha> # repo-standard, pinned commit
 ```
 
 Run this workflow in the repository itself. It runs the caller on pushes to `main` and on pull requests. A mirror or a personal copy runs none of these: the run would be redundant beside the repository's own.

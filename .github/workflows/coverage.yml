@@ -33,10 +33,10 @@ jobs:
           test -n "$ref"
           echo "ref=$ref" >> "$GITHUB_OUTPUT"
       - name: Checkout the pinned standard
-        if: github.repository != 'simpsonm09-org/simpsonm09-repo-standard' && github.repository != 'simpsonm09-projects/simpsonm09-repo-standard'
+        if: github.repository != 'simpsonm09-org/repo-standard' && github.repository != 'simpsonm09-projects/repo-standard'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          repository: ${{ github.repository_owner }}/simpsonm09-repo-standard
+          repository: ${{ github.repository_owner }}/repo-standard
           ref: ${{ steps.pin.outputs.ref }}
           path: .standard
           persist-credentials: false
@@ -48,7 +48,7 @@ jobs:
         env:
           BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
-          if [ "${GITHUB_REPOSITORY}" = "${GITHUB_REPOSITORY_OWNER}/simpsonm09-repo-standard" ]; then
+          if [ "${GITHUB_REPOSITORY}" = "${GITHUB_REPOSITORY_OWNER}/repo-standard" ]; then
             node scripts/patch-coverage.mjs --lcov coverage/lcov.info --base "$BASE" --mode both --allow-missing-branch
           else
             node .standard/scripts/patch-coverage.mjs --lcov coverage/lcov.info --base "$BASE" --mode both --allow-missing-branch
