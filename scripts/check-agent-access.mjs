@@ -9,7 +9,7 @@ import { loadCatalog, loadCommittedCatalog, resolveLevel } from './agent-access.
 import { compareMainRulesets, findUniqueRuleset } from './lib/ruleset-policy.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const CATALOG_DIR = join(ROOT, '..', 'simpsonm09-repo-catalog');
+const CATALOG_DIR = join(ROOT, '..', 'repo-catalog');
 const DEFAULT_CATALOG = join(CATALOG_DIR, 'repos.json');
 const DEFAULT_ORG = 'simpsonm09-org';
 const DEFAULT_BRANCH = 'main';
