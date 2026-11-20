@@ -56,4 +56,4 @@ MIT. See [`LICENSE`](LICENSE).
 ## Related repositories
 
 - [`repo-template`](https://github.com/simpsonm09-projects/repo-template) is the generated-repo starting point.
-- [`maxstack`](https://github.com/simpsonm09-projects/simpsonm09-maxstack) composes the plugin layers for OpenCode and Claude Code. The org plugin also provides agent-access gates for GitHub Copilot CLI and Pi.
+- [`maxstack`](https://github.com/simpsonm09-projects/maxstack) composes the plugin layers for OpenCode and Claude Code. The org plugin also provides agent-access gates for GitHub Copilot CLI and Pi.

@@ -928,12 +928,12 @@ function testCommittedIgnore(assert) {
 }
 
 // Write a sibling resolver that the hook finds at
-// <tmp>/simpsonm09-repo-standard/scripts/agent-access.mjs. It imports the real
+// <tmp>/repo-standard/scripts/agent-access.mjs. It imports the real
 // module by absolute path, but resolves against the fixture catalog, so the hook
 // exercises the real capability table over the fixture levels without touching
 // the live roster.
 function writeFakeResolver(baseDir) {
-  const shadow = join(baseDir, 'simpsonm09-repo-standard', 'scripts');
+  const shadow = join(baseDir, 'repo-standard', 'scripts');
   mkdirSync(shadow, { recursive: true });
   const file = join(shadow, 'agent-access.mjs');
   const body = [

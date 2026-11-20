@@ -93,7 +93,7 @@ ask about a concrete action instead of translating it to a capability by hand.
 node scripts/agent-access.mjs repo-catalog --command "gh pr merge 1"        # exits 1, needs mergePr
 node scripts/agent-access.mjs browser-calculator --command "gh pr merge 1" # exits 0
 node scripts/agent-access.mjs repo-catalog --command "gh pr create"        # exits 0, needs openPr
-node scripts/agent-access.mjs simpsonm09-repo-standard --command "git push --dry-run origin main" --remote-url "https://github.com/simpsonm09/simpsonm09-repo-standard.git"  # exits 0, fork is out of scope
+node scripts/agent-access.mjs repo-standard --command "git push --dry-run origin main" --remote-url "https://github.com/simpsonm09/repo-standard.git"  # exits 0, fork is out of scope
 ```
 
 [`classify(command, remoteUrl)`](../../scripts/agent-access.mjs) is pure and returns
@@ -502,12 +502,12 @@ The push guard is a git hook, so it runs for a `git push` from a clone that has 
 installed, unless the push skips hooks. The org plugin ships agent-side gates for
 OpenCode, Claude Code, GitHub Copilot CLI, and Pi. All four use the shared resolver and
 gate decision, so a level means the same thing in each. They act only in a fleet repository,
-a clone under `projects\repos` or a worktree of one. Any other path is not gated. See the org plugin's [gate overview](https://github.com/simpsonm09-projects/simpsonm09-org-ai-plugin#the-agent-access-gate).
+a clone under `projects\repos` or a worktree of one. Any other path is not gated. See the org plugin's [gate overview](https://github.com/simpsonm09-projects/org-ai-plugin#the-agent-access-gate).
 
 - **OpenCode** calls the gate in its `create.before` shell hook. It rewrites denied
   commands to a shell-specific error and sets `GH_TOKEN` for an allowed `gh` command.
   Resolver-permitted writes run without an approval prompt. See the plugin README's
-  [Known limits](https://github.com/simpsonm09-projects/simpsonm09-org-ai-plugin#known-limits).
+  [Known limits](https://github.com/simpsonm09-projects/org-ai-plugin#known-limits).
 - **Claude Code** uses `PreToolUse` for Bash and PowerShell. It denies disallowed calls
   and rewrites allowed Bash `gh` calls through the token launcher. Read-only `gh` calls
   run without a prompt; other allowed `gh` calls ask first. `gh` in PowerShell is denied
@@ -523,16 +523,16 @@ a clone under `projects\repos` or a worktree of one. Any other path is not gated
 
 All adapters decide from the first command only. They do not inspect scripts or later
 commands in a chain. Unclassified non-`gh` commands can pass, and the adapters differ in failure
-handling, prompting, and shell coverage. The plugin README's [Known limits](https://github.com/simpsonm09-projects/simpsonm09-org-ai-plugin#known-limits)
-and [Known limits (Pi)](https://github.com/simpsonm09-projects/simpsonm09-org-ai-plugin#known-limits-pi)
+handling, prompting, and shell coverage. The plugin README's [Known limits](https://github.com/simpsonm09-projects/org-ai-plugin#known-limits)
+and [Known limits (Pi)](https://github.com/simpsonm09-projects/org-ai-plugin#known-limits-pi)
 sections have the complete shared and harness-specific list, including behavior that has not been
 measured live.
 
 The Copilot hook must keep the native camelCase event keys. PascalCase keys do not tell
 the adapter which shell dialect is in use, so it denies the call. For more detail on the
-four adapter protocols, see the org plugin README's [gate overview](https://github.com/simpsonm09-projects/simpsonm09-org-ai-plugin#the-agent-access-gate),
-the [Copilot build](https://github.com/simpsonm09-projects/simpsonm09-org-ai-plugin#github-copilot-cli-build),
-and the [Pi build](https://github.com/simpsonm09-projects/simpsonm09-org-ai-plugin#pi-coding-agent-build).
+four adapter protocols, see the org plugin README's [gate overview](https://github.com/simpsonm09-projects/org-ai-plugin#the-agent-access-gate),
+the [Copilot build](https://github.com/simpsonm09-projects/org-ai-plugin#github-copilot-cli-build),
+and the [Pi build](https://github.com/simpsonm09-projects/org-ai-plugin#pi-coding-agent-build).
 
 The Claude hook can fail open if Claude Code kills it at its own hook timeout or cannot find
 `node`; its internal failures deny. Copilot's timeout behavior and its PowerShell rewrite
@@ -541,8 +541,8 @@ rewritten command or accepts the documented confirmation API has not been verifi
 On Windows, Bash token launches require Git Bash. Copilot's PowerShell launches use Windows
 PowerShell. The plugin also needs Node and Git, plus
 the local repo-standard resolver/catalog. Tokenized `gh` calls require broker credentials and a
-successful token mint. See the plugin README's [Known limits](https://github.com/simpsonm09-projects/simpsonm09-org-ai-plugin#known-limits)
-and [Known limits (Pi)](https://github.com/simpsonm09-projects/simpsonm09-org-ai-plugin#known-limits-pi)
+successful token mint. See the plugin README's [Known limits](https://github.com/simpsonm09-projects/org-ai-plugin#known-limits)
+and [Known limits (Pi)](https://github.com/simpsonm09-projects/org-ai-plugin#known-limits-pi)
 for the precise cases and remaining limits.
 
 ## What this does not do

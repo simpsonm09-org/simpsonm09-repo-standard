@@ -211,7 +211,7 @@ function runGit(args, cwd, input) {
 
 function testPrePush(assert) {
   const base = mkdtempSync(join(tmpdir(), 'env-push-'));
-  const standard = join(base, 'simpsonm09-repo-standard');
+  const standard = join(base, 'repo-standard');
   const clone = join(base, 'fixture-clone');
   const bare = join(base, 'personal-fork.git');
   try {

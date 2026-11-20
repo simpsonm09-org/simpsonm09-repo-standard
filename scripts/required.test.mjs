@@ -51,7 +51,7 @@ function fixture(files) {
   return root;
 }
 
-const sharedUses = (name) => `simpsonm09-projects/simpsonm09-repo-standard/.github/workflows/${name}.yml@${PIN}`;
+const sharedUses = (name) => `simpsonm09-projects/repo-standard/.github/workflows/${name}.yml@${PIN}`;
 
 // A ci.yml with the four shared jobs, a plain test job, and any extras. Each option
 // changes one job so a case names the one thing it tests.
@@ -205,7 +205,7 @@ function testExtraTestJob(assert) {
 function testRenamedOrgCaller(assert) {
   // The legacy owner spelling stays valid for callers pinned before the
   // organization rename; the standard owner is the one new callers use.
-  const legacy = (name) => `simpsonm09-org/simpsonm09-repo-standard/.github/workflows/${name}.yml@${PIN}`;
+  const legacy = (name) => `simpsonm09-org/repo-standard/.github/workflows/${name}.yml@${PIN}`;
   const legacyCi = ciText({ coverage: legacy('coverage') });
   const legacyGaps = gapIds(repoWith(legacyCi, COVERED_JUST));
   assert(!legacyGaps.includes('ci/pin'), 'a caller pinned through the legacy organization owner is still a pinned reference');
@@ -216,7 +216,7 @@ function testRenamedOrgCaller(assert) {
   assert(!pinnedGaps.includes('ci/pin'), 'a caller pinned through the new organization owner is still a pinned reference');
   assert(!pinnedGaps.includes('ci/coverage'), 'the coverage job is recognized through the new organization owner');
 
-  const unpinned = repoWith(ciText({ coverage: 'simpsonm09-projects/simpsonm09-repo-standard/.github/workflows/coverage.yml@main' }), COVERED_JUST);
+  const unpinned = repoWith(ciText({ coverage: 'simpsonm09-projects/repo-standard/.github/workflows/coverage.yml@main' }), COVERED_JUST);
   assert(gapIds(unpinned).includes('ci/pin'), 'an unpinned reference through the new owner is still a ci/pin gap');
 
   assert(jobsCalling(parseJobs(ciText({ coverage: sharedUses('coverage') })), 'coverage', false).join() === 'coverage', 'the coverage call is found through the new owner');

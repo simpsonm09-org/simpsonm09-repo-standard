@@ -15,7 +15,7 @@ url="$2"
 common=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
 [ -z "$common" ] && common=$(git rev-parse --git-common-dir 2>/dev/null)
 clone=$(dirname "$common")
-guard="$clone/../simpsonm09-repo-standard/scripts/lib/env-pre-push.mjs"
+guard="$clone/../repo-standard/scripts/lib/env-pre-push.mjs"
 if [ ! -f "$guard" ]; then
   root=$(git rev-parse --show-toplevel 2>/dev/null)
   guard="$root/scripts/lib/env-pre-push.mjs"
@@ -51,7 +51,7 @@ repo=$(basename "$url" .git)
 common=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
 [ -z "$common" ] && common=$(git rev-parse --git-common-dir)
 clone=$(dirname "$common")
-resolver="$clone/../simpsonm09-repo-standard/scripts/agent-access.mjs"
+resolver="$clone/../repo-standard/scripts/agent-access.mjs"
 
 if [ ! -f "$resolver" ]; then
   echo "agent-access: $resolver is missing, refusing the push to $repo" >&2
