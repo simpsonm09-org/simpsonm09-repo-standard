@@ -27,8 +27,8 @@ const CHECK_REPO = fileURLToPath(new URL('./check-repo.mjs', import.meta.url));
 const EXCEPTIONS = fileURLToPath(new URL('../docs/exceptions.json', import.meta.url));
 const STANDARD_ROOT = fileURLToPath(new URL('..', import.meta.url));
 const PIN = 'a'.repeat(40);
-const UNCOVERED_REPO = 'simpsonm09-org/simpsonm09-repo-catalog';
-const COVERED_REPO = 'simpsonm09-org/simpsonm09-fixture-go';
+const UNCOVERED_REPO = 'simpsonm09-projects/simpsonm09-repo-catalog';
+const COVERED_REPO = 'simpsonm09-projects/simpsonm09-fixture-go';
 const SHARED_JOBS = ['lint', 'aislop', 'security', 'standard'];
 const BASE_LIVE = ['lint / flint', 'aislop / aislop', 'security / trivy', 'security / secrets', 'standard / standard', 'test'];
 
@@ -51,7 +51,7 @@ function fixture(files) {
   return root;
 }
 
-const sharedUses = (name) => `simpsonm09-org/simpsonm09-repo-standard/.github/workflows/${name}.yml@${PIN}`;
+const sharedUses = (name) => `simpsonm09-projects/simpsonm09-repo-standard/.github/workflows/${name}.yml@${PIN}`;
 
 // A ci.yml with the four shared jobs, a plain test job, and any extras. Each option
 // changes one job so a case names the one thing it tests.
@@ -203,9 +203,15 @@ function testExtraTestJob(assert) {
 }
 
 function testRenamedOrgCaller(assert) {
-  const renamed = (name) => `simpsonm09-projects/simpsonm09-repo-standard/.github/workflows/${name}.yml@${PIN}`;
-  const pinnedCi = ciText({ coverage: renamed('coverage') }).replaceAll('simpsonm09-org', 'simpsonm09-projects');
-  const pinned = repoWith(pinnedCi, COVERED_JUST);
+  // The legacy owner spelling stays valid for callers pinned before the
+  // organization rename; the standard owner is the one new callers use.
+  const legacy = (name) => `simpsonm09-org/simpsonm09-repo-standard/.github/workflows/${name}.yml@${PIN}`;
+  const legacyCi = ciText({ coverage: legacy('coverage') });
+  const legacyGaps = gapIds(repoWith(legacyCi, COVERED_JUST));
+  assert(!legacyGaps.includes('ci/pin'), 'a caller pinned through the legacy organization owner is still a pinned reference');
+  assert(!legacyGaps.includes('ci/coverage'), 'the coverage job is recognized through the legacy organization owner');
+
+  const pinned = repoWith(ciText({ coverage: sharedUses('coverage') }), COVERED_JUST);
   const pinnedGaps = gapIds(pinned);
   assert(!pinnedGaps.includes('ci/pin'), 'a caller pinned through the new organization owner is still a pinned reference');
   assert(!pinnedGaps.includes('ci/coverage'), 'the coverage job is recognized through the new organization owner');
@@ -213,7 +219,7 @@ function testRenamedOrgCaller(assert) {
   const unpinned = repoWith(ciText({ coverage: 'simpsonm09-projects/simpsonm09-repo-standard/.github/workflows/coverage.yml@main' }), COVERED_JUST);
   assert(gapIds(unpinned).includes('ci/pin'), 'an unpinned reference through the new owner is still a ci/pin gap');
 
-  assert(jobsCalling(parseJobs(pinnedCi), 'coverage', false).join() === 'coverage', 'the coverage call is found through the new owner');
+  assert(jobsCalling(parseJobs(ciText({ coverage: sharedUses('coverage') })), 'coverage', false).join() === 'coverage', 'the coverage call is found through the new owner');
 }
 
 function testJobsCallingCoverage(assert) {
@@ -310,7 +316,7 @@ function testExceptionReasons(assert) {
   const coverage = loadExceptions(EXCEPTIONS).filter((entry) => entry.checks.has('ci/coverage'));
   assert(coverage.length >= 4, `the coverage exceptions name the four repositories without a coverage job, got ${coverage.length}`);
   for (const entry of coverage) {
-    assert(entry.repo.startsWith('simpsonm09-org/'), `${entry.repo} is an org repository`);
+    assert(entry.repo.startsWith('simpsonm09-projects/'), `${entry.repo} is an org repository`);
     assert(entry.reason.trim().length > 0, `${entry.repo} gives a reason for having no coverage job`);
   }
 }
