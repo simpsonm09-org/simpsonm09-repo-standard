@@ -7,7 +7,7 @@
       "date": "2026-09-30"
     },
     {
-      "repo": "simpsonm09-projects/simpsonm09-repo-catalog",
+      "repo": "simpsonm09-projects/repo-catalog",
       "checks": ["ci/coverage"],
       "reason": "Records, with no executable code under test. The roster and policy live in repos.json. The only script, scripts/validate.mjs, validates those records and is the repository's test. See docs/governance.md, Required checks.",
       "date": "2026-10-12"

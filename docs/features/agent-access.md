@@ -2,7 +2,7 @@
 
 Agent access answers one question for one repository. How much may an AI agent do
 against it? The policy is intent, and it lives in
-[`repo-catalog`](https://github.com/simpsonm09-projects/simpsonm09-repo-catalog). The
+[`repo-catalog`](https://github.com/simpsonm09-projects/repo-catalog). The
 resolver and the push guard live here, because the standard owns enforcement.
 
 ## The level
@@ -53,9 +53,9 @@ declaration remains the bundle's catalog-location bootstrap and must appear
 exactly once.
 
 ```bash
-node scripts/agent-access.mjs simpsonm09-repo-catalog              # prints the level
+node scripts/agent-access.mjs repo-catalog              # prints the level
 node scripts/agent-access.mjs browser-calculator --json # prints the level, tier, and source
-node scripts/agent-access.mjs simpsonm09-repo-catalog --allows pushMain  # exits 1 when denied
+node scripts/agent-access.mjs repo-catalog --allows pushMain  # exits 1 when denied
 node scripts/agent-access.mjs pstack-max --host github.com \
   --destination simpsonm09/pstack-max \
   --intent '{"operation":"push","capability":"pushBranch","readOnly":false,"resolved":true,"refs":[{"kind":"branch","name":"feat/x","isDefault":false}]}' \
@@ -90,9 +90,9 @@ until an exact entry is committed to the catalog.
 ask about a concrete action instead of translating it to a capability by hand.
 
 ```bash
-node scripts/agent-access.mjs simpsonm09-repo-catalog --command "gh pr merge 1"        # exits 1, needs mergePr
+node scripts/agent-access.mjs repo-catalog --command "gh pr merge 1"        # exits 1, needs mergePr
 node scripts/agent-access.mjs browser-calculator --command "gh pr merge 1" # exits 0
-node scripts/agent-access.mjs simpsonm09-repo-catalog --command "gh pr create"        # exits 0, needs openPr
+node scripts/agent-access.mjs repo-catalog --command "gh pr create"        # exits 0, needs openPr
 node scripts/agent-access.mjs simpsonm09-repo-standard --command "git push --dry-run origin main" --remote-url "https://github.com/simpsonm09/simpsonm09-repo-standard.git"  # exits 0, fork is out of scope
 ```
 
@@ -488,8 +488,8 @@ The broker keeps the app's existing installation permission defaults. It does no
 narrow permissions by operation.
 
 ```bash
-node scripts/agent-token.mjs simpsonm09-projects/simpsonm09-repo-catalog
-node scripts/agent-token.mjs simpsonm09-projects/simpsonm09-repo-catalog --json
+node scripts/agent-token.mjs simpsonm09-projects/repo-catalog
+node scripts/agent-token.mjs simpsonm09-projects/repo-catalog --json
 ```
 
 The app id and key come from `AGENT_APP_ID` and `AGENT_APP_PRIVATE_KEY`, with a
