@@ -49,7 +49,7 @@ A repo-specific skill lives at `.claude/skills/<id>/SKILL.md`. Claude Code and O
 
 A repo-specific agent profile lives at `.opencode/agents/<id>.md`. It uses OpenCode-only frontmatter, so OpenCode is the only harness that reads it. Claude Code has no equivalent location here, and this standard does not invent one.
 
-Four repositories still carry a repo-local skill at `.opencode/skills/verify` and have not moved yet: `simpsonm09-browser-calculator`, `simpsonm09-openclaw-homelab`, `simpsonm09-playwright-api-wrapper`, and `simpsonm09-postman-test-utils`. Each moves its skill to `.claude/skills/verify/` in its own pull request. Until then, the `verify` skill is available only in OpenCode sessions in these repositories.
+Four repositories still carry a repo-local skill at `.opencode/skills/verify` and have not moved yet: `browser-calculator`, `openclaw-homelab`, `playwright-api-wrapper`, and `postman-test-utils`. Each moves its skill to `.claude/skills/verify/` in its own pull request. Until then, the `verify` skill is available only in OpenCode sessions in these repositories.
 
 ## Repo facts
 

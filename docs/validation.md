@@ -67,7 +67,7 @@ tolerated gap with a reason and a date. Never silence a gap inline in code.
 {
   "exceptions": [
     {
-      "repo": "simpsonm09-projects/simpsonm09-postman-test-utils",
+      "repo": "simpsonm09-projects/postman-test-utils",
       "checks": ["community/.aislop/config.yml"],
       "reason": "The aislop audit is off because newman's optional peer tree has advisories with no upstream fix, and Trivy is the dependency gate.",
       "date": "2026-09-30"

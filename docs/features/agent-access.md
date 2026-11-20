@@ -54,7 +54,7 @@ exactly once.
 
 ```bash
 node scripts/agent-access.mjs simpsonm09-repo-catalog              # prints the level
-node scripts/agent-access.mjs simpsonm09-browser-calculator --json # prints the level, tier, and source
+node scripts/agent-access.mjs browser-calculator --json # prints the level, tier, and source
 node scripts/agent-access.mjs simpsonm09-repo-catalog --allows pushMain  # exits 1 when denied
 node scripts/agent-access.mjs pstack-max --host github.com \
   --destination simpsonm09/pstack-max \
@@ -91,7 +91,7 @@ ask about a concrete action instead of translating it to a capability by hand.
 
 ```bash
 node scripts/agent-access.mjs simpsonm09-repo-catalog --command "gh pr merge 1"        # exits 1, needs mergePr
-node scripts/agent-access.mjs simpsonm09-browser-calculator --command "gh pr merge 1" # exits 0
+node scripts/agent-access.mjs browser-calculator --command "gh pr merge 1" # exits 0
 node scripts/agent-access.mjs simpsonm09-repo-catalog --command "gh pr create"        # exits 0, needs openPr
 node scripts/agent-access.mjs simpsonm09-repo-standard --command "git push --dry-run origin main" --remote-url "https://github.com/simpsonm09/simpsonm09-repo-standard.git"  # exits 0, fork is out of scope
 ```
