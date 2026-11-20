@@ -7,7 +7,7 @@
 // through the change only if this check accepts either spelling.
 export const REPO_STANDARD_OWNERS = ['simpsonm09-org', 'simpsonm09-projects'];
 
-export const EXTERNAL_WORKFLOW = /^(?:simpsonm09-org|simpsonm09-projects)\/simpsonm09-repo-standard\/\.github\/workflows\/([a-z0-9-]+)\.yml@([0-9a-fA-F]{40})$/;
+export const EXTERNAL_WORKFLOW = /^(?:simpsonm09-org|simpsonm09-projects)\/repo-standard\/\.github\/workflows\/([a-z0-9-]+)\.yml@([0-9a-fA-F]{40})$/;
 export const LOCAL_WORKFLOW = /^\.\/\.github\/workflows\/([a-z0-9-]+)\.yml$/;
 
 export function parseJobs(text) {

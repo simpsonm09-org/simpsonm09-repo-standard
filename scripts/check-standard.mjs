@@ -51,7 +51,7 @@ export const COMMUNITY_PATHS = [
 const SHARED_JOBS = ['lint', 'aislop', 'security', 'standard'];
 // A caller may pin the shared workflows through either owner spelling while the
 // organization rename is in flight.
-const STANDARD_PIN_PREFIXES = REPO_STANDARD_OWNERS.map((owner) => `${owner}/simpsonm09-repo-standard/`);
+const STANDARD_PIN_PREFIXES = REPO_STANDARD_OWNERS.map((owner) => `${owner}/repo-standard/`);
 const SHA_PATTERN = /^[0-9a-fA-F]{40}$/;
 const GROUPS = ['files', 'mise', 'ci', 'dependabot', 'community', 'docs', 'scripting', 'env', 'subprocess'];
 
