@@ -25,7 +25,7 @@
       "date": "2026-10-12"
     },
     {
-      "repo": "simpsonm09-projects/simpsonm09-dev-setup",
+      "repo": "simpsonm09-projects/dev-setup",
       "checks": ["ci/coverage"],
       "reason": "Not measurable by the shared coverage workflow, in part. The setup code is about 930 lines of PowerShell and about 820 lines of bash. The suite runs two PowerShell scripts, agent-vault/with-secrets.ps1 and apply-tools.ps1, and some bash, but no test runs the rest. The Node modules the suite imports are measurable, but the shared line gate does not measure the setup scripts. Revisit when the setup scripts have tests the workflow can measure. See docs/governance.md, Required checks.",
       "date": "2026-10-12"
